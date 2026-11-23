@@ -212,7 +212,7 @@
     // ========================================================================
     // KONFIGURASI URL WEB APP GOOGLE APPS SCRIPT (GANTI SETELAH DEPLOYMENT)
     // ========================================================================
-    const API_URL = "https://script.google.com/macros/s/AKfycbydp4LfK-lbEwtvV70d_kqInQSqbUzCo9-Olty_cH1u-9LsrMqlFNGCFAd35ez6Yx90LA/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbwaTeTJxNwOHWbdk_GZtWAbKWBz0W21wu3dwTf6X54GbOn82Mh-4f_gWqlltW3_Xepmnw/exec";
 
     const APP = {
         token: localStorage.getItem("smpn2_token") || "",
@@ -222,10 +222,16 @@
         siswa: JSON.parse(localStorage.getItem("smpn2_cache_siswa") || "[]"),
         jadwal: JSON.parse(localStorage.getItem("smpn2_cache_jadwal") || "[]"),
         kkm: JSON.parse(localStorage.getItem("smpn2_cache_kkm") || "[]"),
+        materi: JSON.parse(localStorage.getItem("smpn2_cache_materi") || "[]"),
+        absensi: JSON.parse(localStorage.getItem("smpn2_cache_absensi") || "[]"),
+        nilaiMap: JSON.parse(localStorage.getItem("smpn2_cache_nilai") || "{}"),
+        rekapMap: JSON.parse(localStorage.getItem("smpn2_cache_rekap") || "{}"),
         dashboard: JSON.parse(localStorage.getItem("smpn2_cache_dash") || "null"),
         charts: [],
         scanner: null,
-        syncPromise: null
+        syncPromise: null,
+        lastSyncAt: 0,
+        currentPage: "dashboard"
     };
 
     async function callAPI(action, payload = {}, showLoading = true) {
@@ -243,7 +249,7 @@
             }
             return json;
         } catch (err) {
-            showToast(err.message || "Gagal terhubung ke server", "danger");
+            if (showLoading) showToast(err.message || "Gagal terhubung ke server", "danger");
             return { success: false, message: err.message };
         } finally {
             if (showLoading) document.getElementById("global-loader").classList.add("loader-hidden");
@@ -298,13 +304,18 @@
         });
 
         if (APP.token && APP.user) {
-            const res = await callAPI("verifySession", {}, true);
-            if (res.success) {
-                APP.user = res.data.user;
-                APP.school = res.data.school;
-                startApp();
-                return;
-            }
+            // Langsung buka UI dari cache lokal tanpa menunggu jaringan agar 0 ms
+            startApp();
+            callAPI("verifySession", {}, false).then(res => {
+                if (res.success) {
+                    APP.user = res.data.user;
+                    APP.school = res.data.school;
+                    localStorage.setItem("smpn2_user", JSON.stringify(APP.user));
+                    localStorage.setItem("smpn2_school", JSON.stringify(APP.school));
+                    applyBranding(APP.school);
+                }
+            });
+            return;
         }
         const pub = await callAPI("getPublicInfo", {}, false);
         if (pub.success && pub.data) applyBranding(pub.data);
@@ -377,9 +388,12 @@
     }
 
     async function refreshMaster(force = false, onUpdated = null) {
-        if (!force && APP.kelas.length > 0 && APP.siswa.length > 0) {
-            // Gunakan cache instan (0 ms) lalu sinkronkan diam-diam di latar belakang
-            syncMasterBackground(onUpdated);
+        const hasCache = APP.kelas.length > 0 || APP.siswa.length > 0;
+        if (!force && hasCache) {
+            // Hanya sinkronkan di latar belakang maksimal 1x per 30 detik agar pindah menu tetap 0 ms
+            if (Date.now() - APP.lastSyncAt > 30000) {
+                syncMasterBackground(onUpdated);
+            }
             return;
         }
         await syncMasterBackground(onUpdated);
@@ -387,32 +401,44 @@
 
     function syncMasterBackground(onUpdated = null) {
         if (APP.syncPromise) return APP.syncPromise;
-        APP.syncPromise = Promise.all([
-            callAPI("getKelas", {}, false),
-            callAPI("getSiswa", {}, false),
-            callAPI("getJadwal", {}, false),
-            callAPI("getKKM", {}, false)
-        ]).then(([k, s, j, kkm]) => {
+        APP.syncPromise = callAPI("getAllMaster", {}, false).then(async (res) => {
             let changed = false;
-            if (k.success && JSON.stringify(APP.kelas) !== JSON.stringify(k.data)) {
-                APP.kelas = k.data;
-                localStorage.setItem("smpn2_cache_kelas", JSON.stringify(k.data));
-                changed = true;
-            }
-            if (s.success && JSON.stringify(APP.siswa) !== JSON.stringify(s.data)) {
-                APP.siswa = s.data;
-                localStorage.setItem("smpn2_cache_siswa", JSON.stringify(s.data));
-                changed = true;
-            }
-            if (j.success && JSON.stringify(APP.jadwal) !== JSON.stringify(j.data)) {
-                APP.jadwal = j.data;
-                localStorage.setItem("smpn2_cache_jadwal", JSON.stringify(j.data));
-                changed = true;
-            }
-            if (kkm.success && JSON.stringify(APP.kkm) !== JSON.stringify(kkm.data)) {
-                APP.kkm = kkm.data;
-                localStorage.setItem("smpn2_cache_kkm", JSON.stringify(kkm.data));
-                changed = true;
+            if (res.success && res.data) {
+                const d = res.data;
+                if (JSON.stringify(APP.kelas) !== JSON.stringify(d.kelas)) {
+                    APP.kelas = d.kelas || [];
+                    localStorage.setItem("smpn2_cache_kelas", JSON.stringify(APP.kelas));
+                    changed = true;
+                }
+                if (JSON.stringify(APP.siswa) !== JSON.stringify(d.siswa)) {
+                    APP.siswa = d.siswa || [];
+                    localStorage.setItem("smpn2_cache_siswa", JSON.stringify(APP.siswa));
+                    changed = true;
+                }
+                if (JSON.stringify(APP.jadwal) !== JSON.stringify(d.jadwal)) {
+                    APP.jadwal = d.jadwal || [];
+                    localStorage.setItem("smpn2_cache_jadwal", JSON.stringify(APP.jadwal));
+                    changed = true;
+                }
+                if (JSON.stringify(APP.kkm) !== JSON.stringify(d.kkm)) {
+                    APP.kkm = d.kkm || [];
+                    localStorage.setItem("smpn2_cache_kkm", JSON.stringify(APP.kkm));
+                    changed = true;
+                }
+                APP.lastSyncAt = Date.now();
+            } else {
+                // Fallback jika backend belum di-deploy versi baru
+                const [k, s, j, kkm] = await Promise.all([
+                    callAPI("getKelas", {}, false),
+                    callAPI("getSiswa", {}, false),
+                    callAPI("getJadwal", {}, false),
+                    callAPI("getKKM", {}, false)
+                ]);
+                if (k.success) { APP.kelas = k.data; localStorage.setItem("smpn2_cache_kelas", JSON.stringify(k.data)); changed = true; }
+                if (s.success) { APP.siswa = s.data; localStorage.setItem("smpn2_cache_siswa", JSON.stringify(s.data)); changed = true; }
+                if (j.success) { APP.jadwal = j.data; localStorage.setItem("smpn2_cache_jadwal", JSON.stringify(j.data)); changed = true; }
+                if (kkm.success) { APP.kkm = kkm.data; localStorage.setItem("smpn2_cache_kkm", JSON.stringify(kkm.data)); changed = true; }
+                APP.lastSyncAt = Date.now();
             }
             if (changed && typeof onUpdated === "function") onUpdated();
         }).finally(() => {
@@ -435,6 +461,7 @@
 
     // ==================== ROUTER HALAMAN ====================
     function navigateTo(page) {
+        APP.currentPage = page;
         stopScanner();
         destroyCharts();
         document.querySelectorAll(".nav-link-custom").forEach(el => el.classList.toggle("active", el.getAttribute("data-page") === page));
@@ -836,20 +863,24 @@
     async function delJadwal(id) { const res = await callAPI("deleteJadwal", { id_jadwal: id }); if (res.success) { showToast(res.message); renderJadwal(true); } }
 
     // ==================== 6. MATERI PEMBELAJARAN ====================
+    function drawMateriCards(list) {
+        const box = document.getElementById("materi-list-box");
+        if (!box) return;
+        box.innerHTML = list.map(m => `
+            <div class="col-md-6"><div class="border rounded p-3 h-100">
+                <div class="d-flex justify-content-between"><span class="fw-bold text-primary">Kelas ${m.tingkat} &bull; ${m.jenis}</span><button class="btn btn-sm btn-link text-danger p-0" onclick="delMateri('${m.id_materi}')"><i class="bi bi-trash"></i></button></div>
+                <h6 class="fw-bold mt-1">${m.judul}</h6>
+                <p class="small text-muted">${m.ringkasan}</p>
+                ${m.link ? `<a href="${m.link}" target="_blank" class="btn btn-sm btn-outline-primary">Buka Bahan Ajar</a>` : ''}
+            </div></div>
+        `).join("") || '<div class="text-muted text-center py-4">Belum ada materi pembelajaran.</div>';
+    }
+
     async function renderMateri() {
-        const res = await callAPI("getMateri", {}, true);
-        const list = res.data || [];
         document.getElementById("app-content").innerHTML = `
             <div class="card-custom">
                 <div class="card-header-custom"><h6 class="card-title-custom">Materi Pembelajaran Informatika</h6><button class="btn btn-navy btn-sm" onclick="new bootstrap.Modal(document.getElementById('mMateri')).show()"><i class="bi bi-plus-lg me-1"></i>Tambah Materi</button></div>
-                <div class="p-3 row g-3">${list.map(m => `
-                    <div class="col-md-6"><div class="border rounded p-3 h-100">
-                        <div class="d-flex justify-content-between"><span class="fw-bold text-primary">Kelas ${m.tingkat} &bull; ${m.jenis}</span><button class="btn btn-sm btn-link text-danger p-0" onclick="delMateri('${m.id_materi}')"><i class="bi bi-trash"></i></button></div>
-                        <h6 class="fw-bold mt-1">${m.judul}</h6>
-                        <p class="small text-muted">${m.ringkasan}</p>
-                        ${m.link ? `<a href="${m.link}" target="_blank" class="btn btn-sm btn-outline-primary">Buka Bahan Ajar</a>` : ''}
-                    </div></div>
-                `).join("") || '<div class="text-muted text-center py-4">Belum ada materi pembelajaran.</div>'}</div>
+                <div class="p-3 row g-3" id="materi-list-box"></div>
             </div>
             <div class="modal fade" id="mMateri" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
                 <div class="modal-header bg-primary text-white"><h6 class="modal-title fw-bold">Tambah Materi</h6><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
@@ -873,6 +904,13 @@
             });
             if (res.success) { bootstrap.Modal.getInstance(document.getElementById("mMateri")).hide(); showToast(res.message); renderMateri(); }
         });
+        drawMateriCards(APP.materi);
+        const res = await callAPI("getMateri", {}, false);
+        if (res.success) {
+            APP.materi = res.data || [];
+            localStorage.setItem("smpn2_cache_materi", JSON.stringify(APP.materi));
+            if (APP.currentPage === "materi") drawMateriCards(APP.materi);
+        }
     }
     async function delMateri(id) { const res = await callAPI("deleteMateri", { id_materi: id }); if (res.success) { showToast(res.message); renderMateri(); } }
 
@@ -963,24 +1001,50 @@
     }
 
     // ==================== 8. RIWAYAT ABSENSI ====================
+    function drawRiwayatAbsRows(list) {
+        const tb = document.getElementById("tb-riwayat-abs");
+        if (!tb) return;
+        const rev = (list || []).slice().reverse();
+        tb.innerHTML = rev.map(a => `<tr><td>${a.tanggal}</td><td>${a.jam}</td><td>${a.nis}</td><td class="fw-semibold">${a.nama_siswa}</td><td>${a.kelas}</td><td>${a.status}</td><td>${a.keterangan}</td></tr>`).join("") || '<tr><td colspan="7" class="text-center text-muted">Belum ada riwayat absensi</td></tr>';
+    }
+
     async function renderRiwayatAbsensi() {
-        const res = await callAPI("getRiwayatAbsensi", {}, true);
-        const list = (res.data || []).slice().reverse();
         document.getElementById("app-content").innerHTML = `
             <div class="card-custom">
-                <div class="card-header-custom"><h6 class="card-title-custom">Riwayat Absensi Siswa</h6><button class="btn btn-outline-success btn-sm" onclick="exportAbsExcel()"><i class="bi bi-file-earmark-excel me-1"></i>Ekspor Excel</button></div>
+                <div class="card-header-custom">
+                    <h6 class="card-title-custom">Riwayat Absensi Siswa</h6>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-success btn-sm" onclick="exportAbsExcel()"><i class="bi bi-file-earmark-excel me-1"></i>Ekspor Excel</button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="exportAbsPDF()"><i class="bi bi-file-earmark-pdf me-1"></i>Ekspor PDF</button>
+                    </div>
+                </div>
                 <div class="table-responsive p-3">
                     <table class="table table-hover table-custom" id="tbl-riwayat-abs">
                         <thead><tr><th>Tanggal</th><th>Jam</th><th>NIS</th><th>Nama Siswa</th><th>Kelas</th><th>Status</th><th>Keterangan</th></tr></thead>
-                        <tbody>${list.map(a => `<tr><td>${a.tanggal}</td><td>${a.jam}</td><td>${a.nis}</td><td class="fw-semibold">${a.nama_siswa}</td><td>${a.kelas}</td><td>${a.status}</td><td>${a.keterangan}</td></tr>`).join("")}</tbody>
+                        <tbody id="tb-riwayat-abs"></tbody>
                     </table>
                 </div>
             </div>
         `;
+        drawRiwayatAbsRows(APP.absensi);
+        const res = await callAPI("getRiwayatAbsensi", {}, false);
+        if (res.success) {
+            APP.absensi = res.data || [];
+            localStorage.setItem("smpn2_cache_absensi", JSON.stringify(APP.absensi));
+            if (APP.currentPage === "riwayat-absensi") drawRiwayatAbsRows(APP.absensi);
+        }
     }
     function exportAbsExcel() {
         const wb = XLSX.utils.table_to_book(document.getElementById("tbl-riwayat-abs"));
         XLSX.writeFile(wb, "Riwayat_Absensi_SMPN2Cikijing.xlsx");
+    }
+    function exportAbsPDF(filteredList = null, subJudul = "") {
+        const list = (filteredList || APP.absensi || []).slice().reverse();
+        cetakDokumenPDF(
+            "LAPORAN RIWAYAT KEHADIRAN SISWA" + (subJudul ? " - " + subJudul : ""),
+            ["No", "Tanggal", "Jam", "NIS", "Nama Siswa", "Kelas", "Status", "Keterangan"],
+            list.map((a, i) => [i + 1, a.tanggal, a.jam, a.nis, a.nama_siswa, a.kelas, a.status, a.keterangan || "-"])
+        );
     }
 
     // ==================== 9. INPUT NILAI SISWA TERPADU ====================
@@ -990,107 +1054,12 @@
         document.getElementById("app-content").innerHTML = `
             <div class="card-custom">
                 <div class="card-header-custom">
-                    <h6 class="card-title-custom">Daftar Nilai</h6>
+                    <h6 class="card-title-custom">Rekapitulasi Nilai Akhir & Ketuntasan KKM</h6>
                     <div class="d-flex gap-2">
-                        <select id="nil-kelas" class="form-select form-select-sm" onchange="loadNilaiTabel()">${kOpts}</select>
-                        <button class="btn btn-navy btn-sm" onclick="simpanSemuaNilai()"><i class="bi bi-save me-1"></i>Simpan Semua Nilai</button>
+                        <button class="btn btn-outline-success btn-sm" onclick="XLSX.writeFile(XLSX.utils.table_to_book(document.getElementById('tbl-rekap')), 'Rekap_Nilai.xlsx')"><i class="bi bi-file-earmark-excel me-1"></i>Ekspor Excel</button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="exportRekapPDF()"><i class="bi bi-file-earmark-pdf me-1"></i>Ekspor PDF</button>
                     </div>
                 </div>
-                <div class="table-responsive p-3">
-                    <table class="table table-bordered table-custom">
-                        <thead><tr><th>No</th><th>NIS</th><th>Nama Siswa</th><th class="text-center">UH 1</th><th class="text-center">UH 2</th><th class="text-center">UH 3</th><th class="text-center">UTS</th><th class="text-center">UAS</th><th class="text-center">Nilai Akhir</th><th>Keterangan</th></tr></thead>
-                        <tbody id="tb-input-nilai"></tbody>
-                    </table>
-                </div>
-            </div>
-        `;
-        await loadNilaiTabel();
-    }
-
-    async function loadNilaiTabel() {
-        const kelas = document.getElementById("nil-kelas").value;
-        const res = await callAPI("getNilaiKelas", { kelas }, true);
-        if (!res.success) return;
-        const kkmRow = APP.kkm.find(k => k.kelas === kelas);
-        const kkmVal = kkmRow ? Number(kkmRow.nilai_kkm) : 75;
-
-        document.getElementById("tb-input-nilai").innerHTML = res.data.map((s, i) => `
-            <tr data-nis="${s.nis}" data-kelas="${s.kelas}" data-kkm="${kkmVal}">
-                <td>${i + 1}</td><td>${s.nis}</td><td class="fw-semibold">${s.nama_lengkap}</td>
-                <td><input type="number" min="0" max="100" class="form-control form-control-sm inp-nilai-cell n-uh1" value="${s.uh1}" oninput="recalcRowNilai(this)"></td>
-                <td><input type="number" min="0" max="100" class="form-control form-control-sm inp-nilai-cell n-uh2" value="${s.uh2}" oninput="recalcRowNilai(this)"></td>
-                <td><input type="number" min="0" max="100" class="form-control form-control-sm inp-nilai-cell n-uh3" value="${s.uh3}" oninput="recalcRowNilai(this)"></td>
-                <td><input type="number" min="0" max="100" class="form-control form-control-sm inp-nilai-cell n-uts" value="${s.uts}" oninput="recalcRowNilai(this)"></td>
-                <td><input type="number" min="0" max="100" class="form-control form-control-sm inp-nilai-cell n-uas" value="${s.uas}" oninput="recalcRowNilai(this)"></td>
-                <td class="text-center fw-bold cell-na">-</td>
-                <td class="cell-ket">-</td>
-            </tr>
-        `).join("");
-        document.querySelectorAll("#tb-input-nilai tr").forEach(tr => recalcRowNilai(tr.querySelector("input")));
-    }
-
-    function recalcRowNilai(el) {
-        if (!el) return;
-        const tr = el.closest("tr");
-        const kkm = Number(tr.getAttribute("data-kkm") || 75);
-        const u1 = tr.querySelector(".n-uh1").value;
-        const u2 = tr.querySelector(".n-uh2").value;
-        const u3 = tr.querySelector(".n-uh3").value;
-        const uts = tr.querySelector(".n-uts").value;
-        const uas = tr.querySelector(".n-uas").value;
-
-        if (u1 !== "" && u2 !== "" && u3 !== "" && uts !== "" && uas !== "") {
-            const bH = Number(APP.school.bobot_harian || 40) / 100;
-            const bT = Number(APP.school.bobot_uts || 30) / 100;
-            const bA = Number(APP.school.bobot_uas || 30) / 100;
-            const na = (((Number(u1) + Number(u2) + Number(u3)) / 3) * bH + Number(uts) * bT + Number(uas) * bA).toFixed(2);
-            tr.querySelector(".cell-na").textContent = na;
-            const nNum = Number(na);
-            let pred = "B (Baik)";
-            if (nNum < kkm) pred = "D (Perbaikan)";
-            else if (nNum >= 90) pred = "A+ (Sangat Baik Sekali)";
-            else if (nNum >= 85) pred = "A (Sangat Baik)";
-            else if (nNum >= 80) pred = "B+ (Baik Sekali)";
-            tr.querySelector(".cell-ket").textContent = pred;
-        } else {
-            tr.querySelector(".cell-na").textContent = "-";
-            tr.querySelector(".cell-ket").textContent = "Belum Lengkap";
-        }
-    }
-
-    async function simpanSemuaNilai() {
-        const nilai = [];
-        document.querySelectorAll("#tb-input-nilai tr").forEach(tr => {
-            nilai.push({
-                nis: tr.getAttribute("data-nis"),
-                kelas: tr.getAttribute("data-kelas"),
-                uh1: tr.querySelector(".n-uh1").value,
-                uh2: tr.querySelector(".n-uh2").value,
-                uh3: tr.querySelector(".n-uh3").value,
-                uts: tr.querySelector(".n-uts").value,
-                uas: tr.querySelector(".n-uas").value
-            });
-        });
-        const res = await callAPI("saveNilaiAll", { nilai }, true);
-        if (res.success) showToast(res.message);
-    }
-
-    // ==================== 10. REKAP NILAI & KKM ====================
-    async function renderRekapNilai() {
-        await refreshMaster(false);
-        const kOpts = APP.kelas.filter(k => k.status === "AKTIF").map(k => `<option value="${k.nama_kelas}">${k.nama_kelas}</option>`).join("");
-        document.getElementById("app-content").innerHTML = `
-            <div class="card-custom p-3 mb-3">
-                <div class="row g-2 align-items-end">
-                    <div class="col-md-3"><label class="form-label small fw-semibold">Filter Kelas</label><select id="rek-k" class="form-select form-select-sm" onchange="loadRekap()"><option value="">Semua Kelas</option>${kOpts}</select></div>
-                    <div class="col-md-2"><label class="form-label small fw-semibold">Bobot Harian %</label><input type="number" id="b-h" class="form-control form-control-sm" value="${APP.school.bobot_harian || 40}"></div>
-                    <div class="col-md-2"><label class="form-label small fw-semibold">Bobot UTS %</label><input type="number" id="b-t" class="form-control form-control-sm" value="${APP.school.bobot_uts || 30}"></div>
-                    <div class="col-md-2"><label class="form-label small fw-semibold">Bobot UAS %</label><input type="number" id="b-a" class="form-control form-control-sm" value="${APP.school.bobot_uas || 30}"></div>
-                    <div class="col-md-3"><button class="btn btn-navy btn-sm w-100" onclick="simpanBobot()">Simpan Bobot</button></div>
-                </div>
-            </div>
-            <div class="card-custom">
-                <div class="card-header-custom"><h6 class="card-title-custom">Rekapitulasi Nilai Akhir & Ketuntasan KKM</h6><button class="btn btn-outline-success btn-sm" onclick="XLSX.writeFile(XLSX.utils.table_to_book(document.getElementById('tbl-rekap')), 'Rekap_Nilai.xlsx')">Ekspor Excel</button></div>
                 <div class="table-responsive p-3">
                     <table class="table table-bordered table-custom" id="tbl-rekap">
                         <thead><tr><th>No</th><th>NIS</th><th>Nama Siswa</th><th>Kelas</th><th>UH 1</th><th>UH 2</th><th>UH 3</th><th>UTS</th><th>UAS</th><th>Nilai Akhir</th><th>KKM</th><th>Status</th><th>Predikat</th></tr></thead>
@@ -1099,7 +1068,7 @@
                 </div>
             </div>
         `;
-        await loadRekap();
+        loadRekap();
     }
 
     async function simpanBobot() {
@@ -1111,12 +1080,36 @@
         if (res.success) { showToast(res.message); loadRekap(); } else showToast(res.message, "danger");
     }
 
-    async function loadRekap() {
-        const res = await callAPI("getRekapNilai", { kelas: document.getElementById("rek-k").value }, true);
-        if (!res.success) return;
-        document.getElementById("tb-rekap").innerHTML = res.data.map((r, i) => `
+    function drawRekapRows(rows) {
+        const tb = document.getElementById("tb-rekap");
+        if (!tb) return;
+        tb.innerHTML = (rows || []).map((r, i) => `
             <tr><td>${i + 1}</td><td>${r.nis}</td><td class="fw-semibold">${r.nama_lengkap}</td><td>${r.kelas}</td><td>${r.uh1}</td><td>${r.uh2}</td><td>${r.uh3}</td><td>${r.uts}</td><td>${r.uas}</td><td class="fw-bold">${r.nilai_akhir ?? '-'}</td><td>${r.kkm}</td><td class="fw-semibold">${r.status}</td><td>${r.predikat}</td></tr>
         `).join("");
+    }
+
+    async function loadRekap() {
+        const k = document.getElementById("rek-k")?.value || "";
+        const cacheKey = k || "ALL";
+        if (APP.rekapMap[cacheKey]) drawRekapRows(APP.rekapMap[cacheKey]);
+
+        const res = await callAPI("getRekapNilai", { kelas: k }, false);
+        if (!res.success) return;
+        APP.rekapMap[cacheKey] = res.data;
+        localStorage.setItem("smpn2_cache_rekap", JSON.stringify(APP.rekapMap));
+        if (APP.currentPage === "rekap-nilai" && (document.getElementById("rek-k")?.value || "") === k) {
+            drawRekapRows(res.data);
+        }
+    }
+
+    function exportRekapPDF(customRows = null, kelasLabel = "") {
+        const k = kelasLabel || document.getElementById("rek-k")?.value || "";
+        const rows = customRows || APP.rekapMap[k || "ALL"] || [];
+        cetakDokumenPDF(
+            "LAPORAN REKAPITULASI NILAI & KETUNTASAN KKM" + (k ? " - KELAS " + k : ""),
+            ["No", "NIS", "Nama Siswa", "Kelas", "UH 1", "UH 2", "UH 3", "UTS", "UAS", "Nilai Akhir", "KKM", "Status", "Predikat"],
+            rows.map((r, i) => [i + 1, r.nis, r.nama_lengkap, r.kelas, r.uh1 ?? "-", r.uh2 ?? "-", r.uh3 ?? "-", r.uts ?? "-", r.uas ?? "-", r.nilai_akhir ?? "-", r.kkm, r.status, r.predikat])
+        );
     }
 
     // ==================== 11. PENGATURAN KKM ====================
@@ -1151,17 +1144,157 @@
     }
 
     // ==================== 12. LAPORAN TERPADU ====================
-    function renderLaporan() {
-        document.getElementById("app-content").innerHTML = `
-            <div class="card-custom p-4">
-                <h6 class="card-title-custom mb-3">Pusat Cetak & Ekspor Laporan Sekolah</h6>
-                <p class="small text-muted">Gunakan tombol cetak atau ekspor Excel langsung dari menu Riwayat Absensi maupun Rekap Nilai untuk menghasilkan dokumen berkop resmi SMP Negeri 2 Cikijing.</p>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-navy btn-sm" onclick="navigateTo('riwayat-absensi')">Laporan Absensi</button>
-                    <button class="btn btn-outline-primary btn-sm" onclick="navigateTo('rekap-nilai')">Laporan Rekap Nilai & KKM</button>
+    function cetakDokumenPDF(judulLaporan, headers, bodyRows) {
+        const s = APP.school || {};
+        const tglCetak = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+        const pa = document.getElementById("print-area");
+        pa.innerHTML = `
+            <div style="font-family: Arial, sans-serif; color: #000;">
+                <div style="text-align: center; border-bottom: 3px double #000; padding-bottom: 10px; margin-bottom: 14px;">
+                    <div style="font-size: 13px; font-weight: bold;">PEMERINTAH KABUPATEN MAJALENGKA &bull; DINAS PENDIDIKAN</div>
+                    <div style="font-size: 17px; font-weight: bold; margin: 2px 0;">${s.nama_sekolah || "SMP NEGERI 2 CIKIJING"}</div>
+                    <div style="font-size: 11px;">${s.alamat || "Jl. Raya Cikijing - Talaga, Kab. Majalengka, Jawa Barat"}</div>
+                </div>
+                <div style="text-align: center; font-weight: bold; font-size: 13px; margin-bottom: 4px;">${judulLaporan}</div>
+                <div style="text-align: center; font-size: 11px; margin-bottom: 14px;">
+                    Mata Pelajaran: <strong>${s.mata_pelajaran || "Informatika"}</strong> | Tahun Pelajaran: <strong>${s.tahun_pelajaran_aktif || "2026/2027"}</strong> | Semester: <strong>${s.semester_aktif || "Ganjil"}</strong>
+                </div>
+                <table class="table table-bordered table-sm" style="font-size: 11px; border-color: #333;">
+                    <thead>
+                        <tr style="background-color: #e2e8f0;">${headers.map(h => `<th style="text-align:center;">${h}</th>`).join("")}</tr>
+                    </thead>
+                    <tbody>
+                        ${bodyRows.length > 0
+                            ? bodyRows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join("")}</tr>`).join("")
+                            : `<tr><td colspan="${headers.length}" class="text-center">Tidak ada data tersedia</td></tr>`
+                        }
+                    </tbody>
+                </table>
+                <div style="display: flex; justify-content: space-between; margin-top: 28px; font-size: 11px; page-break-inside: avoid;">
+                    <div style="text-align: center; width: 220px;">
+                        <div>Mengetahui,</div>
+                        <div>Kepala Sekolah</div>
+                        <div style="height: 55px;"></div>
+                        <div style="font-weight: bold; text-decoration: underline;">${s.kepala_sekolah || "Kepala Sekolah"}</div>
+                    </div>
+                    <div style="text-align: center; width: 220px;">
+                        <div>Cikijing, ${tglCetak}</div>
+                        <div>Guru Mata Pelajaran</div>
+                        <div style="height: 55px;"></div>
+                        <div style="font-weight: bold; text-decoration: underline;">${APP.user?.nama_lengkap || s.nama_guru || "Guru Mata Pelajaran"}</div>
+                    </div>
                 </div>
             </div>
         `;
+        pa.classList.remove("d-none");
+        window.print();
+        pa.classList.add("d-none");
+    }
+
+    async function renderLaporan() {
+        await refreshMaster(false);
+        const kOpts = APP.kelas.filter(k => k.status === "AKTIF").map(k => `<option value="${k.nama_kelas}">${k.nama_kelas}</option>`).join("");
+        document.getElementById("app-content").innerHTML = `
+            <div class="card-custom p-3 mb-3">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold">Jenis Laporan</label>
+                        <select id="lap-jenis" class="form-select form-select-sm" onchange="renderIsiLaporan()">
+                            <option value="absensi">Laporan Kehadiran (Absensi Siswa)</option>
+                            <option value="nilai">Laporan Rekapitulasi Nilai & KKM</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Filter Kelas</label>
+                        <select id="lap-kelas" class="form-select form-select-sm" onchange="renderIsiLaporan()">
+                            <option value="">Semua Kelas</option>
+                            ${kOpts}
+                        </select>
+                    </div>
+                    <div class="col-md-5 d-flex gap-2">
+                        <button class="btn btn-danger btn-sm flex-grow-1" onclick="cetakLaporanTerpaduPDF()"><i class="bi bi-file-earmark-pdf-fill me-1"></i>Ekspor / Cetak PDF</button>
+                        <button class="btn btn-success btn-sm flex-grow-1" onclick="eksporLaporanTerpaduExcel()"><i class="bi bi-file-earmark-excel-fill me-1"></i>Ekspor Excel</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-custom">
+                <div class="card-header-custom">
+                    <h6 class="card-title-custom" id="lap-judul-tabel">Pratinjau Laporan Kehadiran Siswa</h6>
+                </div>
+                <div class="table-responsive p-3" id="lap-preview-box"></div>
+            </div>
+        `;
+        await renderIsiLaporan();
+    }
+
+    async function renderIsiLaporan() {
+        const jenis = document.getElementById("lap-jenis")?.value || "absensi";
+        const kelas = document.getElementById("lap-kelas")?.value || "";
+        const box = document.getElementById("lap-preview-box");
+        const judulEl = document.getElementById("lap-judul-tabel");
+        if (!box) return;
+
+        if (jenis === "absensi") {
+            judulEl.textContent = "Pratinjau Laporan Kehadiran Siswa" + (kelas ? " - Kelas " + kelas : "");
+            if (APP.absensi.length === 0) {
+                const res = await callAPI("getRiwayatAbsensi", {}, false);
+                if (res.success) {
+                    APP.absensi = res.data || [];
+                    localStorage.setItem("smpn2_cache_absensi", JSON.stringify(APP.absensi));
+                }
+            }
+            const list = APP.absensi.filter(a => !kelas || a.kelas === kelas).slice().reverse();
+            box.innerHTML = `
+                <table class="table table-bordered table-hover table-custom" id="tbl-laporan-aktif">
+                    <thead><tr><th>No</th><th>Tanggal</th><th>Jam</th><th>NIS</th><th>Nama Siswa</th><th>Kelas</th><th>Status</th><th>Keterangan</th></tr></thead>
+                    <tbody>
+                        ${list.map((a, i) => `<tr><td>${i + 1}</td><td>${a.tanggal}</td><td>${a.jam}</td><td>${a.nis}</td><td class="fw-semibold">${a.nama_siswa}</td><td>${a.kelas}</td><td class="fw-bold">${a.status}</td><td>${a.keterangan || "-"}</td></tr>`).join("") || '<tr><td colspan="8" class="text-center text-muted">Belum ada data kehadiran.</td></tr>'}
+                    </tbody>
+                </table>
+            `;
+        } else {
+            judulEl.textContent = "Pratinjau Laporan Rekapitulasi Nilai & KKM" + (kelas ? " - Kelas " + kelas : "");
+            const cacheKey = kelas || "ALL";
+            let rows = APP.rekapMap[cacheKey];
+            if (!rows) {
+                const res = await callAPI("getRekapNilai", { kelas }, false);
+                if (res.success) {
+                    rows = res.data || [];
+                    APP.rekapMap[cacheKey] = rows;
+                    localStorage.setItem("smpn2_cache_rekap", JSON.stringify(APP.rekapMap));
+                } else {
+                    rows = [];
+                }
+            }
+            box.innerHTML = `
+                <table class="table table-bordered table-hover table-custom" id="tbl-laporan-aktif">
+                    <thead><tr><th>No</th><th>NIS</th><th>Nama Siswa</th><th>Kelas</th><th>UH 1</th><th>UH 2</th><th>UH 3</th><th>UTS</th><th>UAS</th><th>Nilai Akhir</th><th>KKM</th><th>Status</th><th>Predikat</th></tr></thead>
+                    <tbody>
+                        ${rows.map((r, i) => `<tr><td>${i + 1}</td><td>${r.nis}</td><td class="fw-semibold">${r.nama_lengkap}</td><td>${r.kelas}</td><td>${r.uh1 ?? "-"}</td><td>${r.uh2 ?? "-"}</td><td>${r.uh3 ?? "-"}</td><td>${r.uts ?? "-"}</td><td>${r.uas ?? "-"}</td><td class="fw-bold">${r.nilai_akhir ?? "-"}</td><td>${r.kkm}</td><td class="fw-semibold">${r.status}</td><td>${r.predikat}</td></tr>`).join("") || '<tr><td colspan="13" class="text-center text-muted">Belum ada data nilai.</td></tr>'}
+                    </tbody>
+                </table>
+            `;
+        }
+    }
+
+    function cetakLaporanTerpaduPDF() {
+        const jenis = document.getElementById("lap-jenis")?.value || "absensi";
+        const kelas = document.getElementById("lap-kelas")?.value || "";
+        if (jenis === "absensi") {
+            const list = APP.absensi.filter(a => !kelas || a.kelas === kelas);
+            exportAbsPDF(list, kelas ? "KELAS " + kelas : "SEMUA KELAS");
+        } else {
+            const rows = APP.rekapMap[kelas || "ALL"] || [];
+            exportRekapPDF(rows, kelas);
+        }
+    }
+
+    function eksporLaporanTerpaduExcel() {
+        const jenis = document.getElementById("lap-jenis")?.value || "absensi";
+        const tbl = document.getElementById("tbl-laporan-aktif");
+        if (!tbl) return;
+        const wb = XLSX.utils.table_to_book(tbl);
+        XLSX.writeFile(wb, jenis === "absensi" ? "Laporan_Absensi_SMPN2Cikijing.xlsx" : "Laporan_Nilai_SMPN2Cikijing.xlsx");
     }
 
     // ==================== 13. PENGATURAN AKUN & IDENTITAS SEKOLAH ====================
