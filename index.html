@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIAKAD & Absensi QR Code - SMP Negeri 2 Cikijing</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --navy-dark: #091a32;
+            --navy-primary: #0f294a;
+            --navy-light: #1e3a8a;
+            --blue-accent: #2563eb;
+            --blue-soft: #eff6ff;
+            --bg-main: #f4f7fb;
+            --text-dark: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --sidebar-width: 265px;
+            --topbar-height: 66px;
+        }
+        * { font-family: 'Poppins', sans-serif; box-sizing: border-box; }
+        body { background-color: var(--bg-main); color: var(--text-dark); margin: 0; padding: 0; overflow-x: hidden; font-size: 0.88rem; }
+        #global-loader { position: fixed; inset: 0; background: rgba(15, 41, 74, 0.78); backdrop-filter: blur(3px); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #fff; }
+        .loader-hidden { display: none !important; }
+        .login-wrapper { min-height: 100vh; background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy-primary) 55%, var(--navy-light) 100%); display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .login-card { background: #ffffff; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.25); width: 100%; max-width: 430px; padding: 34px 30px; }
+        .login-logo { width: 78px; height: 78px; object-fit: contain; margin-bottom: 10px; }
+        .app-wrapper { display: flex; min-height: 100vh; }
+        .sidebar { width: var(--sidebar-width); background: linear-gradient(180deg, var(--navy-dark) 0%, var(--navy-primary) 100%); color: #ffffff; position: fixed; top: 0; left: 0; height: 100vh; z-index: 1040; transition: transform 0.3s ease; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 15px 18px; display: flex; align-items: center; gap: 11px; border-bottom: 1px solid rgba(255,255,255,0.12); }
+        .sidebar-logo { width: 38px; height: 38px; object-fit: contain; background: #fff; border-radius: 8px; padding: 3px; }
+        .sidebar-menu { flex: 1; overflow-y: auto; padding: 10px 12px; }
+        .menu-category { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; padding: 11px 12px 4px; font-weight: 600; }
+        .nav-link-custom { display: flex; align-items: center; gap: 10px; padding: 9px 13px; color: #e2e8f0; text-decoration: none; border-radius: 9px; margin-bottom: 3px; font-size: 0.84rem; font-weight: 500; transition: all 0.2s; cursor: pointer; }
+        .nav-link-custom:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .nav-link-custom.active { background: var(--blue-accent); color: #fff; font-weight: 600; box-shadow: 0 4px 12px rgba(37,99,235,0.35); }
+        .main-content { flex: 1; margin-left: var(--sidebar-width); display: flex; flex-direction: column; min-width: 0; transition: margin-left 0.3s ease; }
+        .topbar { height: var(--topbar-height); background: #fff; border-bottom: 1px solid var(--border-color); padding: 0 22px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 1020; }
+        .content-body { padding: 22px; flex: 1; }
+        .card-custom { background: #fff; border: 1px solid var(--border-color); border-radius: 13px; box-shadow: 0 2px 8px rgba(15,41,74,0.03); margin-bottom: 18px; }
+        .card-header-custom { padding: 14px 18px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+        .card-title-custom { font-size: 0.96rem; font-weight: 600; color: var(--navy-primary); margin: 0; }
+        .stat-card { background: #fff; border-radius: 13px; padding: 16px; border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; height: 100%; }
+        .stat-icon { width: 44px; height: 44px; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; }
+        .stat-value { font-size: 1.45rem; font-weight: 700; color: var(--navy-primary); line-height: 1.2; }
+        .stat-label { font-size: 0.76rem; color: var(--text-muted); font-weight: 500; }
+        .table-custom th { background-color: var(--blue-soft); color: var(--navy-primary); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; white-space: nowrap; }
+        .table-custom td { vertical-align: middle; font-size: 0.85rem; color: #0f172a; }
+        .inp-nilai-cell { min-width: 78px; width: 82px; text-align: center; font-weight: 600; font-size: 0.9rem; padding: 0.35rem 0.25rem; color: #0f172a; }
+        .btn-navy { background-color: var(--navy-primary); color: #fff; border: none; }
+        .btn-navy:hover { background-color: var(--navy-dark); color: #fff; }
+        #qr-reader { width: 100%; max-width: 440px; margin: 0 auto; border-radius: 12px; overflow: hidden; border: 2px solid var(--blue-accent); }
+        .student-id-card { width: 310px; border: 2px solid var(--navy-primary); border-radius: 14px; overflow: hidden; background: #fff; margin: 10px auto; text-align: center; page-break-inside: avoid; }
+        .student-id-header { background: linear-gradient(135deg, var(--navy-dark), var(--navy-primary)); color: #fff; padding: 12px 14px; border-bottom: 3px solid #f59e0b; }
+        .student-id-body { padding: 16px 14px; }
+        .student-id-qr-wrap { display: inline-flex; padding: 12px; background: #fff; border: 2px solid #cbd5e1; border-radius: 12px; margin: 10px 0 12px; }
+        .student-id-footer { background: #f1f5f9; border-top: 1px solid #e2e8f0; padding: 7px 12px; font-size: 0.7rem; color: #475569; font-weight: 600; }
+        @media (max-width: 991.98px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.show { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1035; display: none; }
+            .sidebar-overlay.show { display: block; }
+        }
+        @media print {
+            body * { visibility: hidden; }
+            #print-area, #print-area * { visibility: visible; }
+            #print-area { position: absolute; left: 0; top: 0; width: 100%; background: #fff; padding: 15px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- LOADER -->
+    <div id="global-loader" class="loader-hidden">
+        <div class="spinner-border text-light mb-2" role="status"></div>
+        <div class="small fw-semibold" id="loader-text">Menghubungkan ke server...</div>
+    </div>
+
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9998;" id="toast-container"></div>
+
+    <!-- HALAMAN LOGIN -->
+    <div id="login-page" class="login-wrapper">
+        <div class="login-card text-center">
+            <img id="login-logo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%230f294a'/%3E%3Ctext x='50' y='57' font-family='Arial' font-size='26' font-weight='bold' fill='white' text-anchor='middle'%3ESMPN2%3C/text%3E%3C/svg%3E" class="login-logo" alt="Logo">
+            <h5 class="fw-bold text-primary mb-1" id="login-school-name">SMP NEGERI 2 CIKIJING</h5>
+            <p class="text-muted small mb-4">Sistem Informasi Absensi & Akademik Siswa Berbasis QR Code</p>
+            <div id="login-error" class="alert alert-danger d-none py-2 small text-start"></div>
+            <form id="form-login" class="text-start">
+                <div class="mb-3">
+                    <label class="form-label small fw-medium">Username</label>
+                    <input type="text" id="login-user" class="form-control" required>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label small fw-medium">Password</label>
+                    <div class="input-group">
+                        <input type="password" id="login-pass" class="form-control" required>
+                        <button class="btn btn-outline-secondary" type="button" onclick="togglePass()"><i class="bi bi-eye"></i></button>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-navy w-100 py-2 fw-semibold"><i class="bi bi-box-arrow-in-right me-2"></i>Masuk ke Sistem</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL WAJIB GANTI PASSWORD AWAL -->
+    <div class="modal fade" id="modalForcePass" data-bs-backdrop="static" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h6 class="modal-title fw-bold">Wajib Ganti Password Awal</h6>
+                </div>
+                <form id="form-force-pass">
+                    <div class="modal-body">
+                        <p class="small text-muted">Silakan ganti password sementara Anda (minimal 8 karakter).</p>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Password Baru</label>
+                            <input type="password" id="force-pass-1" class="form-control" minlength="8" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small fw-semibold">Konfirmasi Password Baru</label>
+                            <input type="password" id="force-pass-2" class="form-control" minlength="8" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-navy w-100">Simpan Password Baru</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- APLIKASI UTAMA -->
+    <div id="main-app" class="app-wrapper d-none">
+        <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar(false)"></div>
+
+        <aside id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <img id="sidebar-logo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%230f294a'/%3E%3Ctext x='50' y='57' font-family='Arial' font-size='26' font-weight='bold' fill='white' text-anchor='middle'%3ESMPN2%3C/text%3E%3C/svg%3E" class="sidebar-logo" alt="Logo">
+                <div>
+                    <div class="fw-bold" style="font-size:0.84rem;line-height:1.2" id="sidebar-school-name">SMPN 2 CIKIJING</div>
+                    <div style="font-size:0.7rem;color:#93c5fd">SIAKAD & Absensi QR</div>
+                </div>
+            </div>
+
+            <div class="sidebar-menu">
+                <div class="menu-category">Utama</div>
+                <a class="nav-link-custom active" data-page="dashboard"><i class="bi bi-grid-1x2-fill"></i><span>Dashboard Utama</span></a>
+
+                <div class="menu-category">Master Data</div>
+                <a class="nav-link-custom" data-page="siswa"><i class="bi bi-people-fill"></i><span>Data Siswa</span></a>
+                <a class="nav-link-custom" data-page="qr-siswa"><i class="bi bi-qr-code"></i><span>QR Code Siswa</span></a>
+                <a class="nav-link-custom" data-page="kelas"><i class="bi bi-building"></i><span>Manajemen Kelas</span></a>
+                <a class="nav-link-custom" data-page="jadwal"><i class="bi bi-calendar-week-fill"></i><span>Jadwal Pelajaran</span></a>
+                <a class="nav-link-custom" data-page="materi"><i class="bi bi-book-half"></i><span>Materi Pembelajaran</span></a>
+
+                <div class="menu-category">Kehadiran</div>
+                <a class="nav-link-custom" data-page="absensi-qr"><i class="bi bi-qr-code-scan"></i><span>Absensi QR Code</span></a>
+                <a class="nav-link-custom" data-page="riwayat-absensi"><i class="bi bi-clock-history"></i><span>Riwayat Absensi</span></a>
+
+                <div class="menu-category">Akademik & Penilaian</div>
+                <a class="nav-link-custom" data-page="input-nilai"><i class="bi bi-journal-check"></i><span>Input Nilai Siswa</span></a>
+                <a class="nav-link-custom" data-page="rekap-nilai"><i class="bi bi-calculator-fill"></i><span>Rekap Nilai & KKM</span></a>
+                <a class="nav-link-custom" data-page="kkm"><i class="bi bi-sliders"></i><span>Pengaturan KKM</span></a>
+
+                <div class="menu-category">Evaluasi & Sistem</div>
+                <a class="nav-link-custom" data-page="laporan"><i class="bi bi-file-earmark-bar-graph-fill"></i><span>Laporan Terpadu</span></a>
+                <a class="nav-link-custom" data-page="pengaturan"><i class="bi bi-gear-fill"></i><span>Pengaturan & Akun</span></a>
+                <a class="nav-link-custom text-danger mt-2" onclick="logoutApp()"><i class="bi bi-box-arrow-left"></i><span>Keluar (Logout)</span></a>
+            </div>
+        </aside>
+
+        <div class="main-content">
+            <header class="topbar">
+                <div class="d-flex align-items-center gap-3">
+                    <button class="btn btn-light d-lg-none" onclick="toggleSidebar(true)"><i class="bi bi-list fs-5"></i></button>
+                    <div>
+                        <h6 class="mb-0 fw-bold text-dark" id="page-title">Dashboard Utama</h6>
+                        <small class="text-muted d-none d-sm-inline" id="topbar-academic">Tahun Pelajaran: - | Semester: -</small>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <div class="text-end d-none d-md-block">
+                        <div class="fw-semibold small text-primary" id="clock-wib">00:00:00 WIB</div>
+                        <div class="text-muted" style="font-size:0.72rem" id="date-wib">-</div>
+                    </div>
+                    <div class="border-start ps-3 d-flex align-items-center gap-2">
+                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width:36px;height:36px" id="topbar-avatar">G</div>
+                        <div class="d-none d-sm-block">
+                            <div class="fw-semibold small" id="topbar-guru">Guru Informatika</div>
+                            <div class="text-muted" style="font-size:0.7rem">Administrator</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="content-body" id="app-content"></main>
+        </div>
+    </div>
+
+    <div id="print-area" class="d-none"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <script>
+    // ========================================================================
+    // KONFIGURASI URL WEB APP GOOGLE APPS SCRIPT (GANTI SETELAH DEPLOYMENT)
+    // ========================================================================
+    const API_URL = "https://script.google.com/macros/s/AKfycbyPyFFfF5KdPihxk5W8Pq-xJsW8nlR1-5qttYiS6xA2o0jtPOW-UDCtUwozUVtJA9j9lA/exec";
+
+    const APP = {
+        token: localStorage.getItem("smpn2_token") || "",
+        user: JSON.parse(localStorage.getItem("smpn2_user") || "null"),
+        school: JSON.parse(localStorage.getItem("smpn2_school") || "{}"),
+        kelas: [],
+        siswa: [],
+        jadwal: [],
+        kkm: [],
+        scanner: null
+    };
+
+    async function callAPI(action, payload = {}, showLoading = true) {
+        if (showLoading) document.getElementById("global-loader").classList.remove("loader-hidden");
+        try {
+            const res = await fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({ action, token: APP.token, payload })
+            });
+            const json = await res.json();
+            if (!json.success && json.code === "UNAUTHORIZED") {
+                logoutApp(true);
+                throw new Error("Sesi berakhir, silakan login ulang.");
+            }
+            return json;
+        } catch (err) {
+            showToast(err.message || "Gagal terhubung ke server", "danger");
+            return { success: false, message: err.message };
+        } finally {
+            if (showLoading) document.getElementById("global-loader").classList.add("loader-hidden");
+        }
+    }
+
+    function showToast(msg, type = "success") {
+        const c = document.getElementById("toast-container");
+        const id = "t-" + Date.now();
+        const bg = type === "success" ? "bg-success" : type === "warning" ? "bg-warning text-dark" : "bg-danger";
+        c.insertAdjacentHTML("beforeend", `<div id="${id}" class="toast align-items-center text-white ${bg} border-0 shadow"><div class="d-flex"><div class="toast-body">${msg}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>`);
+        new bootstrap.Toast(document.getElementById(id), { delay: 3500 }).show();
+    }
+
+    function togglePass() {
+        const p = document.getElementById("login-pass");
+        p.type = p.type === "password" ? "text" : "password";
+    }
+
+    function toggleSidebar(show) {
+        document.getElementById("sidebar").classList.toggle("show", show);
+        document.getElementById("sidebar-overlay").classList.toggle("show", show);
+    }
+
+    function stopScanner() {
+        if (APP.scanner && APP.scanner.isScanning) {
+            APP.scanner.stop().catch(() => {});
+        }
+    }
+
+    setInterval(() => {
+        const now = new Date();
+        const c = document.getElementById("clock-wib");
+        const d = document.getElementById("date-wib");
+        if (c) c.textContent = now.toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta", hour12: false }) + " WIB";
+        if (d) d.textContent = now.toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta", weekday: "long", day: "numeric", month: "long", year: "numeric" });
+    }, 1000);
+
+    // ==================== LOGIN & SESSION ====================
+    document.addEventListener("DOMContentLoaded", async () => {
+        document.querySelectorAll(".nav-link-custom[data-page]").forEach(el => {
+            el.addEventListener("click", (e) => {
+                e.preventDefault();
+                navigateTo(el.getAttribute("data-page"));
+                toggleSidebar(false);
+            });
+        });
+
+        if (APP.token && APP.user) {
+            const res = await callAPI("verifySession", {}, true);
+            if (res.success) {
+                APP.user = res.data.user;
+                APP.school = res.data.school;
+                startApp();
+                return;
+            }
+        }
+        const pub = await callAPI("getPublicInfo", {}, false);
+        if (pub.success && pub.data) applyBranding(pub.data);
+    });
+
+    document.getElementById("form-login").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const username = document.getElementById("login-user").value.trim();
+        const password = document.getElementById("login-pass").value;
+        const res = await callAPI("login", { username, password }, true);
+        if (res.success) {
+            APP.token = res.data.token;
+            APP.user = res.data.user;
+            APP.school = res.data.school;
+            localStorage.setItem("smpn2_token", APP.token);
+            localStorage.setItem("smpn2_user", JSON.stringify(APP.user));
+            localStorage.setItem("smpn2_school", JSON.stringify(APP.school));
+            startApp();
+        } else {
+            const err = document.getElementById("login-error");
+            err.textContent = res.message;
+            err.classList.remove("d-none");
+        }
+    });
+
+    document.getElementById("form-force-pass").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const p1 = document.getElementById("force-pass-1").value;
+        const p2 = document.getElementById("force-pass-2").value;
+        if (p1 !== p2) return showToast("Konfirmasi password tidak cocok!", "danger");
+        const res = await callAPI("forceChangePassword", { newPassword: p1 }, true);
+        if (res.success) {
+            APP.user.wajib_ganti_password = "FALSE";
+            localStorage.setItem("smpn2_user", JSON.stringify(APP.user));
+            bootstrap.Modal.getInstance(document.getElementById("modalForcePass")).hide();
+            showToast(res.message);
+            navigateTo("dashboard");
+        } else showToast(res.message, "danger");
+    });
+
+    function applyBranding(s) {
+        if (!s) return;
+        document.getElementById("login-school-name").textContent = s.nama_sekolah || "SMP NEGERI 2 CIKIJING";
+        document.getElementById("sidebar-school-name").textContent = s.nama_sekolah || "SMPN 2 CIKIJING";
+        document.getElementById("topbar-academic").textContent = `Tahun Pelajaran: ${s.tahun_pelajaran_aktif || '-'} | Semester: ${s.semester_aktif || '-'}`;
+        if (s.logo_url) {
+            document.getElementById("login-logo").src = s.logo_url;
+            document.getElementById("sidebar-logo").src = s.logo_url;
+        }
+    }
+
+    async function startApp() {
+        document.getElementById("login-page").classList.add("d-none");
+        document.getElementById("main-app").classList.remove("d-none");
+        document.getElementById("topbar-guru").textContent = APP.user.nama_lengkap;
+        document.getElementById("topbar-avatar").textContent = APP.user.nama_lengkap.charAt(0).toUpperCase();
+        applyBranding(APP.school);
+
+        if (APP.user.wajib_ganti_password === "TRUE" || APP.user.wajib_ganti_password === true) {
+            new bootstrap.Modal(document.getElementById("modalForcePass")).show();
+            return;
+        }
+        await refreshMaster();
+        navigateTo("dashboard");
+    }
+
+    async function refreshMaster() {
+        const [k, s, j, kkm] = await Promise.all([
+            callAPI("getKelas", {}, false),
+            callAPI("getSiswa", {}, false),
+            callAPI("getJadwal", {}, false),
+            callAPI("getKKM", {}, false)
+        ]);
+        if (k.success) APP.kelas = k.data;
+        if (s.success) APP.siswa = s.data;
+        if (j.success) APP.jadwal = j.data;
+        if (kkm.success) APP.kkm = kkm.data;
+    }
+
+    async function logoutApp(silent = false) {
+        stopScanner();
+        if (!silent && APP.token) await callAPI("logout", {}, false);
+        localStorage.removeItem("smpn2_token");
+        localStorage.removeItem("smpn2_user");
+        APP.token = "";
+        APP.user = null;
+        document.getElementById("main-app").classList.add("d-none");
+        document.getElementById("login-page").classList.remove("d-none");
+    }
+
+    // ==================== ROUTER HALAMAN ====================
+    function navigateTo(page) {
+        stopScanner();
+        document.querySelectorAll(".nav-link-custom").forEach(el => el.classList.toggle("active", el.getAttribute("data-page") === page));
+        const titles = {
+            "dashboard": "Dashboard Utama",
+            "siswa": "Data Siswa",
+            "qr-siswa": "QR Code & Kartu Pelajar Siswa",
+            "kelas": "Manajemen Kelas",
+            "jadwal": "Jadwal Pelajaran",
+            "materi": "Materi Pembelajaran",
+            "absensi-qr": "Absensi QR Code",
+            "riwayat-absensi": "Riwayat Absensi",
+            "input-nilai": "Input Nilai Siswa (UH, UTS, UAS & Nilai Akhir)",
+            "rekap-nilai": "Rekap Nilai & Ketuntasan KKM",
+            "kkm": "Pengaturan KKM",
+            "laporan": "Laporan Terpadu",
+            "pengaturan": "Pengaturan Akun & Identitas Sekolah"
+        };
+        document.getElementById("page-title").textContent = titles[page] || "Dashboard";
+
+        if (page === "dashboard") renderDashboard();
+        else if (page === "siswa") renderSiswa();
+        else if (page === "qr-siswa") renderQRSiswa();
+        else if (page === "kelas") renderKelas();
+        else if (page === "jadwal") renderJadwal();
+        else if (page === "materi") renderMateri();
+        else if (page === "absensi-qr") renderAbsensiQR();
+        else if (page === "riwayat-absensi") renderRiwayatAbsensi();
+        else if (page === "input-nilai") renderInputNilai();
+        else if (page === "rekap-nilai") renderRekapNilai();
+        else if (page === "kkm") renderKKM();
+        else if (page === "laporan") renderLaporan();
+        else if (page === "pengaturan") renderPengaturan();
+    }
+
+    // ==================== 1. DASHBOARD ====================
+    async function renderDashboard() {
+        const res = await callAPI("getDashboard", {}, true);
+        if (!res.success) return;
+        const d = res.data;
+        document.getElementById("app-content").innerHTML = `
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-md-3"><div class="stat-card"><div><div class="stat-label">Total Siswa</div><div class="stat-value">${d.totalSiswa}</div></div><div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-people-fill"></i></div></div></div>
+                <div class="col-6 col-md-3"><div class="stat-card"><div><div class="stat-label">Total Kelas</div><div class="stat-value">${d.totalKelas}</div></div><div class="stat-icon bg-info bg-opacity-10 text-info"><i class="bi bi-building"></i></div></div></div>
+                <div class="col-6 col-md-3"><div class="stat-card"><div><div class="stat-label">Hadir Hari Ini</div><div class="stat-value">${d.hadirHariIni}</div></div><div class="stat-icon bg-success bg-opacity-10 text-success"><i class="bi bi-check-circle-fill"></i></div></div></div>
+                <div class="col-6 col-md-3"><div class="stat-card"><div><div class="stat-label">Persentase Hadir</div><div class="stat-value">${d.persentaseKehadiran}%</div></div><div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-pie-chart-fill"></i></div></div></div>
+                <div class="col-4"><div class="stat-card"><div><div class="stat-label">Izin Hari Ini</div><div class="stat-value">${d.izinHariIni}</div></div><div class="stat-icon bg-info bg-opacity-10 text-info"><i class="bi bi-envelope-paper"></i></div></div></div>
+                <div class="col-4"><div class="stat-card"><div><div class="stat-label">Sakit Hari Ini</div><div class="stat-value">${d.sakitHariIni}</div></div><div class="stat-icon bg-secondary bg-opacity-10 text-secondary"><i class="bi bi-bandaid"></i></div></div></div>
+                <div class="col-4"><div class="stat-card"><div><div class="stat-label">Alpa Hari Ini</div><div class="stat-value">${d.alpaHariIni}</div></div><div class="stat-icon bg-danger bg-opacity-10 text-danger"><i class="bi bi-x-circle"></i></div></div></div>
+            </div>
+            <div class="row g-3 mb-4">
+                <div class="col-lg-5"><div class="card-custom p-3 h-100"><h6 class="card-title-custom mb-3">Grafik Kehadiran Hari Ini</h6><div style="height:220px"><canvas id="cAbs"></canvas></div></div></div>
+                <div class="col-lg-4"><div class="card-custom p-3 h-100"><h6 class="card-title-custom mb-3">Rata-Rata Nilai Kelas</h6><div style="height:220px"><canvas id="cNil"></canvas></div></div></div>
+                <div class="col-lg-3"><div class="card-custom p-3 h-100"><h6 class="card-title-custom mb-3">Ketuntasan KKM</h6><div style="height:220px"><canvas id="cKkm"></canvas></div></div></div>
+            </div>
+            <div class="card-custom">
+                <div class="card-header-custom"><h6 class="card-title-custom">Aktivitas Absensi Terbaru</h6></div>
+                <div class="table-responsive p-3">
+                    <table class="table table-hover table-custom mb-0">
+                        <thead><tr><th>Tanggal & Jam</th><th>NIS</th><th>Nama Siswa</th><th>Kelas</th><th>Status</th></tr></thead>
+                        <tbody>${d.recentAbsensi.map(a => `<tr><td>${a.tanggal} ${a.jam}</td><td>${a.nis}</td><td class="fw-semibold">${a.nama_siswa}</td><td>${a.kelas}</td><td>${a.status}</td></tr>`).join("") || '<tr><td colspan="5" class="text-center text-muted">Belum ada data</td></tr>'}</tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        new Chart(document.getElementById("cAbs"), { type: "bar", data: { labels: ["Hadir", "Izin", "Sakit", "Alpa"], datasets: [{ data: [d.hadirHariIni, d.izinHariIni, d.sakitHariIni, d.alpaHariIni], backgroundColor: ["#16a34a", "#0284c7", "#64748b", "#dc2626"] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+        new Chart(document.getElementById("cNil"), { type: "bar", data: { labels: d.rataRataKelas.map(x => x.kelas), datasets: [{ data: d.rataRataKelas.map(x => x.rata_rata), backgroundColor: "#0f294a" }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { max: 100 } }, plugins: { legend: { display: false } } } });
+        new Chart(document.getElementById("cKkm"), { type: "doughnut", data: { labels: ["Mencapai", "Tidak Mencapai"], datasets: [{ data: [d.ketuntasan.mencapai, d.ketuntasan.tidakMencapai], backgroundColor: ["#16a34a", "#dc2626"] }] }, options: { responsive: true, maintainAspectRatio: false } });
+    }
+
+    // ==================== 2. DATA SISWA (IMPORT EXCEL & EXPORT PDF) ====================
+    async function renderSiswa() {
+        await refreshMaster();
+        const kOpts = APP.kelas.filter(k => k.status === "AKTIF").map(k => `<option value="${k.nama_kelas}">${k.nama_kelas}</option>`).join("");
+        document.getElementById("app-content").innerHTML = `
+            <div class="card-custom">
+                <div class="card-header-custom">
+                    <h6 class="card-title-custom">Manajemen Data Siswa</h6>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button class="btn btn-navy btn-sm" onclick="openModalSiswa()"><i class="bi bi-plus-lg me-1"></i>Tambah Siswa</button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="dlTemplateSiswa()"><i class="bi bi-file-earmark-arrow-down me-1"></i>Template</button>
+                        <button class="btn btn-outline-success btn-sm" onclick="document.getElementById('imp-siswa').click()"><i class="bi bi-file-earmark-excel me-1"></i>Impor Excel</button>
+                        <input type="file" id="imp-siswa" accept=".xlsx,.xls,.csv" class="d-none" onchange="handleImportSiswa(event)">
+                        <button class="btn btn-outline-primary btn-sm" onclick="exportSiswaXlsx()"><i class="bi bi-download me-1"></i>Ekspor Excel</button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="exportSiswaPDF()"><i class="bi bi-file-earmark-pdf me-1"></i>Ekspor PDF</button>
+                    </div>
+                </div>
+                <div class="p-3 bg-light border-bottom row g-2">
+                    <div class="col-md-5"><input type="text" id="s-q" class="form-control form-control-sm" placeholder="Cari NIS / Nama..." oninput="drawSiswaTable()"></div>
+                    <div class="col-md-4"><select id="s-k" class="form-select form-select-sm" onchange="drawSiswaTable()"><option value="">Semua Kelas</option>${kOpts}</select></div>
+                    <div class="col-md-3"><select id="s-jk" class="form-select form-select-sm" onchange="drawSiswaTable()"><option value="">Semua L/P</option><option value="L">Laki-laki</option><option value="P">Perempuan</option></select></div>
+                </div>
+                <div class="table-responsive p-3">
+                    <table class="table table-hover table-custom">
+                        <thead><tr><th>No</th><th>NIS</th><th>Nama Lengkap</th><th>L/P</th><th>Kelas</th><th>Status</th><th class="text-end">Aksi</th></tr></thead>
+                        <tbody id="tb-siswa"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal fade" id="mSiswa" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+                <div class="modal-header bg-primary text-white"><h6 class="modal-title fw-bold" id="mSiswaTitle">Data Siswa</h6><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+                <form id="f-siswa"><div class="modal-body">
+                    <input type="hidden" id="f-s-id">
+                    <div class="mb-2"><label class="form-label small fw-semibold">NIS</label><input type="text" id="f-s-nis" class="form-control" required></div>
+                    <div class="mb-2"><label class="form-label small fw-semibold">Nama Lengkap</label><input type="text" id="f-s-nama" class="form-control" required></div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6"><label class="form-label small fw-semibold">Jenis Kelamin</label><select id="f-s-jk" class="form-select"><option value="L">Laki-laki</option><option value="P">Perempuan</option></select></div>
+                        <div class="col-6"><label class="form-label small fw-semibold">Kelas</label><select id="f-s-kelas" class="form-select" required>${kOpts}</select></div>
+                    </div>
+                    <div class="mb-2"><label class="form-label small fw-semibold">Status</label><select id="f-s-status" class="form-select"><option value="AKTIF">AKTIF</option><option value="NONAKTIF">NONAKTIF</option></select></div>
+                </div><div class="modal-footer"><button type="submit" class="btn btn-navy">Simpan</button></div></form>
+            </div></div></div>
+        `;
+        document.getElementById("f-siswa").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const id = document.getElementById("f-s-id").value;
+            const res = await callAPI(id ? "updateSiswa" : "addSiswa", {
+                id_siswa: id,
+                nis: document.getElementById("f-s-nis").value,
+                nama_lengkap: document.getElementById("f-s-nama").value,
+                jenis_kelamin: document.getElementById("f-s-jk").value,
+                kelas: document.getElementById("f-s-kelas").value,
+                status: document.getElementById("f-s-status").value
+            });
+            if (res.success) {
+                bootstrap.Modal.getInstance(document.getElementById("mSiswa")).hide();
+                showToast(res.message);
+                renderSiswa();
+            } else showToast(res.message, "danger");
+        });
+        drawSiswaTable();
+    }
+
+    function drawSiswaTable() {
+        const q = (document.getElementById("s-q")?.value || "").toLowerCase();
+        const k = document.getElementById("s-k")?.value || "";
+        const jk = document.getElementById("s-jk")?.value || "";
+        const list = APP.siswa.filter(s => (!q || s.nama_lengkap.toLowerCase().includes(q) || String(s.nis).includes(q)) && (!k || s.kelas === k) && (!jk || s.jenis_kelamin === jk));
+        document.getElementById("tb-siswa").innerHTML = list.map((s, i) => `
+            <tr><td>${i + 1}</td><td>${s.nis}</td><td class="fw-semibold">${s.nama_lengkap}</td><td>${s.jenis_kelamin}</td><td>${s.kelas}</td><td>${s.status}</td>
+            <td class="text-end">
+                <button class="btn btn-sm btn-outline-primary me-1" onclick="openModalSiswa('${s.id_siswa}')"><i class="bi bi-pencil"></i></button>
+                <button class="btn btn-sm btn-outline-danger" onclick="delSiswa('${s.id_siswa}')"><i class="bi bi-trash"></i></button>
+            </td></tr>
+        `).join("") || '<tr><td colspan="7" class="text-center text-muted">Tidak ada data</td></tr>';
+    }
+
+    function openModalSiswa(id = "") {
+        document.getElementById("f-siswa").reset();
+        document.getElementById("f-s-id").value = id;
+        if (id) {
+            const s = APP.siswa.find(x => x.id_siswa === id);
+            if (s) {
+                document.getElementById("f-s-nis").value = s.nis;
+                document.getElementById("f-s-nama").value = s.nama_lengkap;
+                document.getElementById("f-s-jk").value = s.jenis_kelamin;
+                document.getElementById("f-s-kelas").value = s.kelas;
+                document.getElementById("f-s-status").value = s.status;
+            }
+        }
+        new bootstrap.Modal(document.getElementById("mSiswa")).show();
+    }
+
+    async function delSiswa(id) {
+        const res = await callAPI("deleteSiswa", { id_siswa: id });
+        if (res.success) { showToast(res.message); renderSiswa(); }
+    }
+
+    function dlTemplateSiswa() {
+        const ws = XLSX.utils.json_to_sheet([{ NIS: "262707101", NAMA_LENGKAP: "Contoh Siswa", JENIS_KELAMIN: "L", KELAS: "VII A" }]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Template");
+        XLSX.writeFile(wb, "Template_Siswa_SMPN2Cikijing.xlsx");
+    }
+
+    function handleImportSiswa(e) {
+        const f = e.target.files[0];
+        if (!f) return;
+        const r = new FileReader();
+        r.onload = async (ev) => {
+            const wb = XLSX.read(new Uint8Array(ev.target.result), { type: "array" });
+            const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+            const res = await callAPI("importSiswaBulk", { siswa: rows });
+            if (res.success) { showToast(res.message); renderSiswa(); }
+        };
+        r.readAsArrayBuffer(f);
+    }
+
+    function exportSiswaXlsx() {
+        const ws = XLSX.utils.json_to_sheet(APP.siswa.map((s, i) => ({ No: i + 1, NIS: s.nis, Nama: s.nama_lengkap, JK: s.jenis_kelamin, Kelas: s.kelas, Status: s.status })));
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Siswa");
+        XLSX.writeFile(wb, "Data_Siswa_SMPN2Cikijing.xlsx");
+    }
+
+    function exportSiswaPDF() {
+        const pa = document.getElementById("print-area");
+        pa.innerHTML = `<h5 class="text-center fw-bold">${APP.school.nama_sekolah}</h5><p class="text-center small">DAFTAR DATA SISWA</p><table class="table table-bordered table-sm"><thead><tr><th>No</th><th>NIS</th><th>Nama Lengkap</th><th>L/P</th><th>Kelas</th><th>Status</th></tr></thead><tbody>${APP.siswa.map((s, i) => `<tr><td>${i + 1}</td><td>${s.nis}</td><td>${s.nama_lengkap}</td><td>${s.jenis_kelamin}</td><td>${s.kelas}</td><td>${s.status}</td></tr>`).join("")}</tbody></table>`;
+        pa.classList.remove("d-none"); window.print(); pa.classList.add("d-none");
+    }
+
+    // ==================== 3. QR CODE SISWA (KARTU PELAJAR) ====================
+    async function renderQRSiswa() {
+        await refreshMaster();
+        const kOpts = APP.kelas.filter(k => k.status === "AKTIF").map(k => `<option value="${k.nama_kelas}">${k.nama_kelas}</option>`).join("");
+        document.getElementById("app-content").innerHTML = `
+            <div class="card-custom">
+                <div class="card-header-custom">
+                    <h6 class="card-title-custom">Kartu Pelajar & QR Code Siswa</h6>
+                    <div class="d-flex gap-2">
+                        <select id="qr-k" class="form-select form-select-sm" onchange="drawQRTable()"><option value="">Semua Kelas</option>${kOpts}</select>
+                        <button class="btn btn-navy btn-sm" onclick="printBulkQR()"><i class="bi bi-printer me-1"></i>Cetak Kartu Per Kelas</button>
+                    </div>
+                </div>
+                <div class="table-responsive p-3">
+                    <table class="table table-hover table-custom">
+                        <thead><tr><th>No</th><th>NIS</th><th>Nama Siswa</th><th>Kelas</th><th>Token QR</th><th class="text-end">Aksi</th></tr></thead>
+                        <tbody id="tb-qr"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal fade" id="mQR" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+                <div class="modal-header bg-primary text-white"><h6 class="modal-title fw-bold">Kartu Pelajar Digital</h6><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body" id="qr-card-area"></div>
+                <div class="modal-footer justify-content-center"><button class="btn btn-navy btn-sm" onclick="printSingleCard()"><i class="bi bi-printer me-1"></i>Cetak Kartu</button></div>
+            </div></div></div>
+        `;
+        drawQRTable();
+    }
+
+    function drawQRTable() {
+        const k = document.getElementById("qr-k")?.value || "";
+        const list = APP.siswa.filter(s => s.status === "AKTIF" && (!k || s.kelas === k));
+        document.getElementById("tb-qr").innerHTML = list.map((s, i) => `
+            <tr><td>${i + 1}</td><td>${s.nis}</td><td class="fw-semibold">${s.nama_lengkap}</td><td>${s.kelas}</td><td><code>${s.qr_token}</code></td>
+            <td class="text-end"><button class="btn btn-sm btn-outline-primary" onclick="openQRCard('${s.id_siswa}')"><i class="bi bi-person-badge me-1"></i>Kartu QR</button></td></tr>
+        `).join("");
+    }
+
+    function buildCardHTML(s, qrId) {
+        return `<div class="student-id-card"><div class="student-id-header"><div class="fw-bold small">${APP.school.nama_sekolah || 'SMP NEGERI 2 CIKIJING'}</div><div style="font-size:0.65rem;color:#fcd34d">KARTU PELAJAR DIGITAL</div></div><div class="student-id-body"><div class="fw-bold">${s.nama_lengkap}</div><div class="small text-muted">NIS: ${s.nis} &bull; Kelas ${s.kelas}</div><div class="student-id-qr-wrap"><div id="${qrId}"></div></div></div><div class="student-id-footer">Tahun Pelajaran ${APP.school.tahun_pelajaran_aktif || '2026/2027'}</div></div>`;
+    }
+
+    function openQRCard(id) {
+        const s = APP.siswa.find(x => x.id_siswa === id);
+        if (!s) return;
+        document.getElementById("qr-card-area").innerHTML = buildCardHTML(s, "qr-single-box");
+        new QRCode(document.getElementById("qr-single-box"), { text: s.qr_token, width: 220, height: 220, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H });
+        new bootstrap.Modal(document.getElementById("mQR")).show();
+    }
+
+    function printSingleCard() {
+        const pa = document.getElementById("print-area");
+        pa.innerHTML = document.getElementById("qr-card-area").innerHTML;
+        pa.classList.remove("d-none"); window.print(); pa.classList.add("d-none");
+    }
+
+    function printBulkQR() {
+        const k = document.getElementById("qr-k").value;
+        if (!k) return showToast("Pilih kelas terlebih dahulu!", "warning");
+        const list = APP.siswa.filter(s => s.kelas === k && s.status === "AKTIF");
+        const pa = document.getElementById("print-area");
+        pa.innerHTML = `<div class="d-flex flex-wrap justify-content-center gap-3">${list.map((s, i) => buildCardHTML(s, "qr-b-" + i)).join("")}</div>`;
+        list.forEach((s, i) => new QRCode(document.getElementById("qr-b-" + i), { text: s.qr_token, width: 175, height: 175 }));
+        pa.classList.remove("d-none"); setTimeout(() => { window.print(); pa.classList.add("d-none"); }, 400);
+    }
+
+    // ==================== 4. MANAJEMEN KELAS ====================
+    async function renderKelas() {
+        await refreshMaster();
+        document.getElementById("app-content").innerHTML = `
+            <div class="card-custom">
+                <div class="card-header-custom"><h6 class="card-title-custom">Manajemen Kelas</h6><button class="btn btn-navy btn-sm" onclick="openModalKelas()"><i class="bi bi-plus-lg me-1"></i>Tambah Kelas</button></div>
+                <div class="table-responsive p-3">
+                    <table class="table table-hover table-custom">
+                        <thead><tr><th>No</th><th>Nama Kelas</th><th>Tingkat</th><th>Tahun Pelajaran</th><th>Wali Kelas</th><th>Jumlah Siswa</th><th>Status</th><th class="text-end">Aksi</th></tr></thead>
+                        <tbody>${APP.kelas.map((k, i) => `
+                            <tr><td>${i + 1}</td><td class="fw-bold">${k.nama_kelas}</td><td>${k.tingkat}</td><td>${k.tahun_pelajaran}</td><td>${k.wali_kelas}</td>
+                            <td><button class="btn btn-sm btn-link p-0 text-decoration-none fw-semibold" onclick="showSiswaInKelas('${k.nama_kelas}')">${k.jumlah_siswa || 0} Siswa</button></td>
+                            <td>${k.status}</td>
+                            <td class="text-end"><button class="btn btn-sm btn-outline-primary me-1" onclick="openModalKelas('${k.id_kelas}')"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-outline-danger" onclick="delKelas('${k.id_kelas}')"><i class="bi bi-trash"></i></button></td></tr>
+                        `).join("")}</tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal fade" id="mKelas" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+                <div class="modal-header bg-primary text-white"><h6 class="modal-title fw-bold">Form Kelas</h6><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+                <form id="f-kelas"><div class="modal-body">
+                    <input type="hidden" id="k-id">
+                    <div class="mb-2"><label class="form-label small fw-semibold">Nama Kelas</label><input type="text" id="k-nama" class="form-control" required></div>
+                    <div class="mb-2"><label class="form-label small fw-semibold">Tingkat</label><select id="k-tingkat" class="form-select"><option value="VII">VII</option><option value="VIII">VIII</option><option value="IX">IX</option></select></div>
+                    <div class="mb-2"><label class="form-label small fw-semibold">Tahun Pelajaran</label><input type="text" id="k-tapel" class="form-control" value="${APP.school.tahun_pelajaran_aktif || '2026/2027'}" required></div>
+                    <div class="mb-2"><label class="form-label small fw-semibold">Wali Kelas</label><input type="text" id="k-wali" class="form-control" required></div>
+                    <div class="mb-2"><label class="form-label small fw-semibold">Status</label><select id="k-status" class="form-select"><option value="AKTIF">AKTIF</option><option value="ARSIP">ARSIP</option></select></div>
+                </div><div class="modal-footer"><button type="submit" class="btn btn-navy">Simpan</button></div></form>
+            </div></div></div>
+            <div class="modal fade" id="mKelasSiswa" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+                <div class="modal-header bg-primary text-white"><h6 class="modal-title fw-bold" id="mKS-title">Daftar Siswa</h6><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body" id="mKS-body"></div>
+            </div></div></div>
+        `;
+        document.getElementById("f-kelas").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const id = document.getElementById("k-id").value;
+            const res = await callAPI(id ? "updateKelas" : "addKelas", {
+                id_kelas: id, nama_kelas: document.getElementById("k-nama").value.toUpperCase(),
+                tingkat: document.getElementById("k-tingkat").value, tahun_pelajaran: document.getElementById("k-tapel").value,
+                wali_kelas: document.getElementById("k-wali").value, status: document.getElementById("k-status").value
+            });
+            if (res.success) { bootstrap.Modal.getInstance(document.getElementById("mKelas")).hide(); showToast(res.message); renderKelas(); }
+        });
+    }
+
+    function showSiswaInKelas(namaKelas) {
+        const list = APP.siswa.filter(s => s.kelas === namaKelas && s.status === "AKTIF");
+        document.getElementById("mKS-title").textContent = `Daftar Siswa Kelas ${namaKelas} (${list.length} Siswa)`;
+        document.getElementById("mKS-body").innerHTML = `<table class="table table-sm table-bordered"><thead><tr><th>No</th><th>NIS</th><th>Nama Lengkap</th><th>L/P</th></tr></thead><tbody>${list.map((s, i) => `<tr><td>${i + 1}</td><td>${s.nis}</td><td>${s.nama_lengkap}</td><td>${s.jenis_kelamin}</td></tr>`).join("") || '<tr><td colspan="4" class="text-center">Kosong</td></tr>'}</tbody></table>`;
+        new bootstrap.Modal(document.getElementById("mKelasSiswa")).show();
+    }
+
+    function openModalKelas(id = "") {
+        document.getElementById("f-kelas").reset();
+        document.getElementById("k-id").value = id;
+        if (id) {
+            const k = APP.kelas.find(x => x.id_kelas === id);
+            if (k) {
+                document.getElementById("k-nama").value = k.nama_kelas;
+                document.getElementById("k-tingkat").value = k.tingkat;
+                document.getElementById("k-tapel").value = k.tahun_pelajaran;
+                document.getElementById("k-wali").value = k.wali_kelas;
+                document.getElementById("k-status").value = k.status;
+            }
+        }
+        new bootstrap.Modal(document.getElementById("mKelas")).show();
+    }
+
+    async function delKelas(id) {
+        const res = await callAPI("deleteKelas", { id_kelas: id });
+        if (res.success) { showToast(res.message); renderKelas(); } else showToast(res.message, "warning");
+    }
+
+    // ==================== 5. JADWAL PELAJARAN ====================
+    async function renderJadwal() {
+        await refreshMaster();
+        const kOpts = APP.kelas.filter(k => k.status === "AKTIF").map(k => `<option value="${k.nama_kelas}">${k.nama_kelas}</option>`).join("");
+        document.getElementById("app-content").innerHTML = `
+            <div class="card-custom">
+                <div class="card-header-custom"><h6 class="card-title-custom">Jadwal Mengajar Per Kelas</h6><button class="btn btn-navy btn-sm" onclick="openModalJadwal()"><i class="bi bi-plus-lg me-1"></i>Tambah Jadwal</button></div>
+                <div class="table-responsive p-3">
+                    <table class="table table-hover table-custom">
+                        <thead><tr><th>No</th><th>Hari</th><th>Jam</th><th>Kelas</th><th>Mata Pelajaran</th><th>Guru</th><th class="text-end">Aksi</th></tr></thead>
+                        <tbody>${APP.jadwal.map((j, i) => `
+                            <tr><td>${i + 1}</td><td class="fw-semibold">${j.hari}</td><td>${j.jam}</td><td>${j.kelas}</td><td>${j.mata_pelajaran}</td><td>${j.nama_guru}</td>
+                            <td class="text-end"><button class="btn btn-sm btn-outline-danger" onclick="delJadwal('${j.id_jadwal}')"><i class="bi bi-trash"></i></button></td></tr>
+                        `).join("")}</tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal fade" id="mJadwal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+                <div class="modal-header bg-primary text-white"><h6 class="modal-title fw-bold">Tambah Jadwal</h6><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+                <form id="f-jadwal"><div class="modal-body">
+                    <div class="mb-2"><label class="form-label small fw-semibold">Hari</label><select id="j-hari" class="form-select"><option>Senin</option><option>Selasa</option><option>Rabu</option><option>Kamis</option><option>Jumat</option><option>Sabtu</option></select></div>
+                    <div class="mb-2"><label class="form-label small fw-semibold">Jam</label><input type="text" id="j-jam" class="form-control" placeholder="07:30 - 09:00" required></div>
+                    <div class="mb-2"><label class="form-label small fw-semibold">Kelas</label><select id="j-kelas" class="form-select" required>${kOpts}</select></div>
+                    <div class="mb-2"><label class="form-label small fw-semibold">Mata Pelajaran</label><input type="text" id="j-mapel" class="form-control" value="${APP.school.mata_pelajaran || 'Informatika'}" required></div>
+                    <div class="mb-2"><label class="form-label small fw-semibold">Guru</label><input type="text" id="j-guru" class="form-control" value="${APP.user.nama_lengkap}" required></div>
+                </div><div class="modal-footer"><button type="submit" class="btn btn-navy">Simpan</button></div></form>
+            </div></div></div>
+        `;
+        document.getElementById("f-jadwal").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const res = await callAPI("saveJadwal", {
+                hari: document.getElementById("j-hari").value, jam: document.getElementById("j-jam").value,
+                kelas: document.getElementById("j-kelas").value, mata_pelajaran: document.getElementById("j-mapel").value,
+                nama_guru: document.getElementById("j-guru").value
+            });
+            if (res.success) { bootstrap.Modal.getInstance(document.getElementById("mJadwal")).hide(); showToast(res.message); renderJadwal(); }
+        });
+    }
+    function openModalJadwal() { new bootstrap.Modal(document.getElementById("mJadwal")).show(); }
+    async function delJadwal(id) { const res = await callAPI("deleteJadwal", { id_jadwal: id }); if (res.success) { showToast(res.message); renderJadwal(); } }
+
+    // ==================== 6. MATERI PEMBELAJARAN ====================
+    async function renderMateri() {
+        const res = await callAPI("getMateri", {}, true);
+        const list = res.data || [];
+        document.getElementById("app-content").innerHTML = `
+            <div class="card-custom">
+                <div class="card-header-custom"><h6 class="card-title-custom">Materi Pembelajaran Informatika</h6><button class="btn btn-navy btn-sm" onclick="new bootstrap.Modal(document.getElementById('mMateri')).show()"><i class="bi bi-plus-lg me-1"></i>Tambah Materi</button></div>
+                <div class="p-3 row g-3">${list.map(m => `
+                    <div class="col-md-6"><div class="border rounded p-3 h-100">
+                        <div class="d-flex justify-content-between"><span class="fw-bold text-primary">Kelas ${m.tingkat} &bull; ${m.jenis}</span><button class="btn btn-sm btn-link text-danger p-0" onclick="delMateri('${m.id_materi}')"><i class="bi bi-trash"></i></button></div>
+                        <h6 class="fw-bold mt-1">${m.judul}</h6>
+                        <p class="small text-muted">${m.ringkasan}</p>
+                        ${m.link ? `<a href="${m.link}" target="_blank" class="btn btn-sm btn-outline-primary">Buka Bahan Ajar</a>` : ''}
+                    </div></div>
+                `).join("") || '<div class="text-muted text-center py-4">Belum ada materi pembelajaran.</div>'}</div>
+            </div>
+            <div class="modal fade" id="mMateri" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+                <div class="modal-header bg-primary text-white"><h6 class="modal-title fw-bold">Tambah Materi</h6><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+                <form id="f-materi"><div class="modal-body">
+                    <div class="mb-2"><label class="form-label small fw-semibold">Judul Materi</label><input type="text" id="mat-judul" class="form-control" required></div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6"><label class="form-label small fw-semibold">Tingkat</label><select id="mat-tingkat" class="form-select"><option>VII</option><option>VIII</option><option>IX</option></select></div>
+                        <div class="col-6"><label class="form-label small fw-semibold">Jenis</label><select id="mat-jenis" class="form-select"><option>Modul PDF</option><option>Slide Presentasi</option><option>Video</option></select></div>
+                    </div>
+                    <div class="mb-2"><label class="form-label small fw-semibold">Tautan (Google Drive / YouTube)</label><input type="url" id="mat-link" class="form-control"></div>
+                    <div class="mb-2"><label class="form-label small fw-semibold">Ringkasan</label><textarea id="mat-ringkas" class="form-control" rows="3" required></textarea></div>
+                </div><div class="modal-footer"><button type="submit" class="btn btn-navy">Simpan</button></div></form>
+            </div></div></div>
+        `;
+        document.getElementById("f-materi").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const res = await callAPI("saveMateri", {
+                judul: document.getElementById("mat-judul").value, tingkat: document.getElementById("mat-tingkat").value,
+                jenis: document.getElementById("mat-jenis").value, link: document.getElementById("mat-link").value,
+                ringkasan: document.getElementById("mat-ringkas").value
+            });
+            if (res.success) { bootstrap.Modal.getInstance(document.getElementById("mMateri")).hide(); showToast(res.message); renderMateri(); }
+        });
+    }
+    async function delMateri(id) { const res = await callAPI("deleteMateri", { id_materi: id }); if (res.success) { showToast(res.message); renderMateri(); } }
+
+    // ==================== 7. ABSENSI QR CODE (OTOMATIS ALPA + KAMERA) ====================
+    async function renderAbsensiQR() {
+        await refreshMaster();
+        const kOpts = APP.kelas.filter(k => k.status === "AKTIF").map(k => `<option value="${k.nama_kelas}">${k.nama_kelas}</option>`).join("");
+        const jOpts = APP.jadwal.map(j => `<option value="${j.id_jadwal}">${j.hari} (${j.jam}) - ${j.kelas}</option>`).join("");
+        document.getElementById("app-content").innerHTML = `
+            <div class="card-custom p-3 mb-3">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-4"><label class="form-label small fw-semibold">Pilih Kelas</label><select id="scan-kelas" class="form-select form-select-sm" onchange="initAbsKelas()">${kOpts}</select></div>
+                    <div class="col-md-4"><label class="form-label small fw-semibold">Pilih Jadwal</label><select id="scan-jadwal" class="form-select form-select-sm" onchange="initAbsKelas()">${jOpts || '<option value="SESI-1">Jadwal Hari Ini</option>'}</select></div>
+                    <div class="col-md-4 d-flex gap-2">
+                        <button type="button" class="btn btn-navy btn-sm flex-grow-1" onclick="startCameraScan()"><i class="bi bi-camera-video-fill me-1"></i>Buka Sesi</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="stopScanner()"><i class="bi bi-camera-video-off-fill me-1"></i>Tutup Sesi</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-custom p-3 text-center mb-3">
+                <div id="qr-reader" class="bg-dark text-white d-flex align-items-center justify-content-center" style="min-height:240px;"><span class="small">Klik Buka Sesi untuk mengaktifkan kamera</span></div>
+                <div id="scan-result" class="mt-3"></div>
+            </div>
+            <div class="card-custom">
+                <div class="card-header-custom"><h6 class="card-title-custom">Daftar Kehadiran Sesi Ini (Otomatis ALPA Sebelum Scan)</h6></div>
+                <div class="table-responsive p-3">
+                    <table class="table table-hover table-custom"><thead><tr><th>No</th><th>NIS</th><th>Nama Siswa</th><th>Jam</th><th>Status</th><th>Keterangan</th><th>Edit</th></tr></thead><tbody id="tb-scan-list"></tbody></table>
+                </div>
+            </div>
+        `;
+        await initAbsKelas();
+    }
+
+    async function initAbsKelas() {
+        const kelas = document.getElementById("scan-kelas")?.value;
+        const id_jadwal = document.getElementById("scan-jadwal")?.value;
+        if (!kelas) return;
+        await callAPI("initSessionAlpa", { kelas, id_jadwal }, false);
+        await refreshScanTable();
+    }
+
+    async function refreshScanTable() {
+        const kelas = document.getElementById("scan-kelas")?.value;
+        const id_jadwal = document.getElementById("scan-jadwal")?.value;
+        const today = new Date().toISOString().split("T")[0];
+        const res = await callAPI("getRiwayatAbsensi", {}, false);
+        if (!res.success) return;
+        const rows = res.data.filter(a => a.tanggal === today && a.kelas === kelas && a.id_jadwal === id_jadwal);
+        document.getElementById("tb-scan-list").innerHTML = rows.map((r, i) => `
+            <tr><td>${i + 1}</td><td>${r.nis}</td><td class="fw-semibold">${r.nama_siswa}</td><td>${r.jam}</td><td class="fw-bold">${r.status}</td><td>${r.keterangan}</td>
+            <td><select class="form-select form-select-sm" style="width:110px" onchange="quickEditAbs('${r.id_absensi}', this.value)">
+                <option value="HADIR" ${r.status === 'HADIR' ? 'selected' : ''}>HADIR</option>
+                <option value="IZIN" ${r.status === 'IZIN' ? 'selected' : ''}>IZIN</option>
+                <option value="SAKIT" ${r.status === 'SAKIT' ? 'selected' : ''}>SAKIT</option>
+                <option value="ALPA" ${r.status === 'ALPA' ? 'selected' : ''}>ALPA</option>
+            </select></td></tr>
+        `).join("");
+    }
+
+    async function quickEditAbs(id, status) {
+        const res = await callAPI("updateAbsensi", { id_absensi: id, status, keterangan: "Edit Guru" }, false);
+        if (res.success) { showToast("Status diubah ke " + status); refreshScanTable(); }
+    }
+
+    async function startCameraScan() {
+        try {
+            stopScanner();
+            APP.scanner = new Html5Qrcode("qr-reader");
+            const cams = await Html5Qrcode.getCameras();
+            if (!cams || cams.length === 0) throw new Error("Kamera tidak ditemukan.");
+            await APP.scanner.start(cams[0].id, { fps: 10, qrbox: 200 }, async (token) => {
+                const res = await callAPI("scanQRCode", {
+                    qr_token: token,
+                    kelas: document.getElementById("scan-kelas").value,
+                    id_jadwal: document.getElementById("scan-jadwal").value
+                }, false);
+                if (res.success) {
+                    showToast(`${res.data.nama_lengkap} tercatat HADIR!`);
+                    document.getElementById("scan-result").innerHTML = `<div class="alert alert-success py-2 small"><strong>${res.data.nama_lengkap}</strong> (${res.data.nis}) - HADIR pada ${res.data.jam}</div>`;
+                    refreshScanTable();
+                } else {
+                    showToast(res.message, "warning");
+                }
+            }, () => {});
+        } catch (err) {
+            document.getElementById("scan-result").innerHTML = `<div class="alert alert-warning py-2 small">${err.message}</div>`;
+        }
+    }
+
+    // ==================== 8. RIWAYAT ABSENSI ====================
+    async function renderRiwayatAbsensi() {
+        const res = await callAPI("getRiwayatAbsensi", {}, true);
+        const list = (res.data || []).slice().reverse();
+        document.getElementById("app-content").innerHTML = `
+            <div class="card-custom">
+                <div class="card-header-custom"><h6 class="card-title-custom">Riwayat Absensi Siswa</h6><button class="btn btn-outline-success btn-sm" onclick="exportAbsExcel()"><i class="bi bi-file-earmark-excel me-1"></i>Ekspor Excel</button></div>
+                <div class="table-responsive p-3">
+                    <table class="table table-hover table-custom" id="tbl-riwayat-abs">
+                        <thead><tr><th>Tanggal</th><th>Jam</th><th>NIS</th><th>Nama Siswa</th><th>Kelas</th><th>Status</th><th>Keterangan</th></tr></thead>
+                        <tbody>${list.map(a => `<tr><td>${a.tanggal}</td><td>${a.jam}</td><td>${a.nis}</td><td class="fw-semibold">${a.nama_siswa}</td><td>${a.kelas}</td><td>${a.status}</td><td>${a.keterangan}</td></tr>`).join("")}</tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+    function exportAbsExcel() {
+        const wb = XLSX.utils.table_to_book(document.getElementById("tbl-riwayat-abs"));
+        XLSX.writeFile(wb, "Riwayat_Absensi_SMPN2Cikijing.xlsx");
+    }
+
+    // ==================== 9. INPUT NILAI SISWA TERPADU ====================
+    async function renderInputNilai() {
+        await refreshMaster();
+        const kOpts = APP.kelas.filter(k => k.status === "AKTIF").map(k => `<option value="${k.nama_kelas}">${k.nama_kelas}</option>`).join("");
+        document.getElementById("app-content").innerHTML = `
+            <div class="card-custom">
+                <div class="card-header-custom">
+                    <h6 class="card-title-custom">Input Nilai UH 1, UH 2, UH 3, UTS, UAS & Nilai Akhir</h6>
+                    <div class="d-flex gap-2">
+                        <select id="nil-kelas" class="form-select form-select-sm" onchange="loadNilaiTabel()">${kOpts}</select>
+                        <button class="btn btn-navy btn-sm" onclick="simpanSemuaNilai()"><i class="bi bi-save me-1"></i>Simpan Semua Nilai</button>
+                    </div>
+                </div>
+                <div class="table-responsive p-3">
+                    <table class="table table-bordered table-custom">
+                        <thead><tr><th>No</th><th>NIS</th><th>Nama Siswa</th><th class="text-center">UH 1</th><th class="text-center">UH 2</th><th class="text-center">UH 3</th><th class="text-center">UTS</th><th class="text-center">UAS</th><th class="text-center">Nilai Akhir</th><th>Keterangan</th></tr></thead>
+                        <tbody id="tb-input-nilai"></tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        await loadNilaiTabel();
+    }
+
+    async function loadNilaiTabel() {
+        const kelas = document.getElementById("nil-kelas").value;
+        const res = await callAPI("getNilaiKelas", { kelas }, true);
+        if (!res.success) return;
+        const kkmRow = APP.kkm.find(k => k.kelas === kelas);
+        const kkmVal = kkmRow ? Number(kkmRow.nilai_kkm) : 75;
+
+        document.getElementById("tb-input-nilai").innerHTML = res.data.map((s, i) => `
+            <tr data-nis="${s.nis}" data-kelas="${s.kelas}" data-kkm="${kkmVal}">
+                <td>${i + 1}</td><td>${s.nis}</td><td class="fw-semibold">${s.nama_lengkap}</td>
+                <td><input type="number" min="0" max="100" class="form-control form-control-sm inp-nilai-cell n-uh1" value="${s.uh1}" oninput="recalcRowNilai(this)"></td>
+                <td><input type="number" min="0" max="100" class="form-control form-control-sm inp-nilai-cell n-uh2" value="${s.uh2}" oninput="recalcRowNilai(this)"></td>
+                <td><input type="number" min="0" max="100" class="form-control form-control-sm inp-nilai-cell n-uh3" value="${s.uh3}" oninput="recalcRowNilai(this)"></td>
+                <td><input type="number" min="0" max="100" class="form-control form-control-sm inp-nilai-cell n-uts" value="${s.uts}" oninput="recalcRowNilai(this)"></td>
+                <td><input type="number" min="0" max="100" class="form-control form-control-sm inp-nilai-cell n-uas" value="${s.uas}" oninput="recalcRowNilai(this)"></td>
+                <td class="text-center fw-bold cell-na">-</td>
+                <td class="cell-ket">-</td>
+            </tr>
+        `).join("");
+        document.querySelectorAll("#tb-input-nilai tr").forEach(tr => recalcRowNilai(tr.querySelector("input")));
+    }
+
+    function recalcRowNilai(el) {
+        if (!el) return;
+        const tr = el.closest("tr");
+        const kkm = Number(tr.getAttribute("data-kkm") || 75);
+        const u1 = tr.querySelector(".n-uh1").value;
+        const u2 = tr.querySelector(".n-uh2").value;
+        const u3 = tr.querySelector(".n-uh3").value;
+        const uts = tr.querySelector(".n-uts").value;
+        const uas = tr.querySelector(".n-uas").value;
+
+        if (u1 !== "" && u2 !== "" && u3 !== "" && uts !== "" && uas !== "") {
+            const bH = Number(APP.school.bobot_harian || 40) / 100;
+            const bT = Number(APP.school.bobot_uts || 30) / 100;
+            const bA = Number(APP.school.bobot_uas || 30) / 100;
+            const na = (((Number(u1) + Number(u2) + Number(u3)) / 3) * bH + Number(uts) * bT + Number(uas) * bA).toFixed(2);
+            tr.querySelector(".cell-na").textContent = na;
+            const nNum = Number(na);
+            let pred = "B (Baik)";
+            if (nNum < kkm) pred = "D (Perbaikan)";
+            else if (nNum >= 90) pred = "A+ (Sangat Baik Sekali)";
+            else if (nNum >= 85) pred = "A (Sangat Baik)";
+            else if (nNum >= 80) pred = "B+ (Baik Sekali)";
+            tr.querySelector(".cell-ket").textContent = pred;
+        } else {
+            tr.querySelector(".cell-na").textContent = "-";
+            tr.querySelector(".cell-ket").textContent = "Belum Lengkap";
+        }
+    }
+
+    async function simpanSemuaNilai() {
+        const nilai = [];
+        document.querySelectorAll("#tb-input-nilai tr").forEach(tr => {
+            nilai.push({
+                nis: tr.getAttribute("data-nis"),
+                kelas: tr.getAttribute("data-kelas"),
+                uh1: tr.querySelector(".n-uh1").value,
+                uh2: tr.querySelector(".n-uh2").value,
+                uh3: tr.querySelector(".n-uh3").value,
+                uts: tr.querySelector(".n-uts").value,
+                uas: tr.querySelector(".n-uas").value
+            });
+        });
+        const res = await callAPI("saveNilaiAll", { nilai }, true);
+        if (res.success) showToast(res.message);
+    }
+
+    // ==================== 10. REKAP NILAI & KKM ====================
+    async function renderRekapNilai() {
+        await refreshMaster();
+        const kOpts = APP.kelas.filter(k => k.status === "AKTIF").map(k => `<option value="${k.nama_kelas}">${k.nama_kelas}</option>`).join("");
+        document.getElementById("app-content").innerHTML = `
+            <div class="card-custom p-3 mb-3">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-3"><label class="form-label small fw-semibold">Filter Kelas</label><select id="rek-k" class="form-select form-select-sm" onchange="loadRekap()"><option value="">Semua Kelas</option>${kOpts}</select></div>
+                    <div class="col-md-2"><label class="form-label small fw-semibold">Bobot Harian %</label><input type="number" id="b-h" class="form-control form-control-sm" value="${APP.school.bobot_harian || 40}"></div>
+                    <div class="col-md-2"><label class="form-label small fw-semibold">Bobot UTS %</label><input type="number" id="b-t" class="form-control form-control-sm" value="${APP.school.bobot_uts || 30}"></div>
+                    <div class="col-md-2"><label class="form-label small fw-semibold">Bobot UAS %</label><input type="number" id="b-a" class="form-control form-control-sm" value="${APP.school.bobot_uas || 30}"></div>
+                    <div class="col-md-3"><button class="btn btn-navy btn-sm w-100" onclick="simpanBobot()">Simpan Bobot</button></div>
+                </div>
+            </div>
+            <div class="card-custom">
+                <div class="card-header-custom"><h6 class="card-title-custom">Rekapitulasi Nilai Akhir & Ketuntasan KKM</h6><button class="btn btn-outline-success btn-sm" onclick="XLSX.writeFile(XLSX.utils.table_to_book(document.getElementById('tbl-rekap')), 'Rekap_Nilai.xlsx')">Ekspor Excel</button></div>
+                <div class="table-responsive p-3">
+                    <table class="table table-bordered table-custom" id="tbl-rekap">
+                        <thead><tr><th>No</th><th>NIS</th><th>Nama Siswa</th><th>Kelas</th><th>UH 1</th><th>UH 2</th><th>UH 3</th><th>UTS</th><th>UAS</th><th>Nilai Akhir</th><th>KKM</th><th>Status</th><th>Predikat</th></tr></thead>
+                        <tbody id="tb-rekap"></tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        await loadRekap();
+    }
+
+    async function simpanBobot() {
+        const res = await callAPI("saveBobot", {
+            bobot_harian: document.getElementById("b-h").value,
+            bobot_uts: document.getElementById("b-t").value,
+            bobot_uas: document.getElementById("b-a").value
+        });
+        if (res.success) { showToast(res.message); loadRekap(); } else showToast(res.message, "danger");
+    }
+
+    async function loadRekap() {
+        const res = await callAPI("getRekapNilai", { kelas: document.getElementById("rek-k").value }, true);
+        if (!res.success) return;
+        document.getElementById("tb-rekap").innerHTML = res.data.map((r, i) => `
+            <tr><td>${i + 1}</td><td>${r.nis}</td><td class="fw-semibold">${r.nama_lengkap}</td><td>${r.kelas}</td><td>${r.uh1}</td><td>${r.uh2}</td><td>${r.uh3}</td><td>${r.uts}</td><td>${r.uas}</td><td class="fw-bold">${r.nilai_akhir ?? '-'}</td><td>${r.kkm}</td><td class="fw-semibold">${r.status}</td><td>${r.predikat}</td></tr>
+        `).join("");
+    }
+
+    // ==================== 11. PENGATURAN KKM ====================
+    async function renderKKM() {
+        await refreshMaster();
+        const kOpts = APP.kelas.filter(k => k.status === "AKTIF").map(k => `<option value="${k.nama_kelas}">${k.nama_kelas}</option>`).join("");
+        document.getElementById("app-content").innerHTML = `
+            <div class="card-custom">
+                <div class="card-header-custom"><h6 class="card-title-custom">Pengaturan KKM Per Kelas</h6></div>
+                <div class="p-3 border-bottom bg-light">
+                    <form id="f-kkm" class="row g-2 align-items-end">
+                        <div class="col-md-4"><label class="form-label small fw-semibold">Kelas</label><select id="kkm-k" class="form-select form-select-sm">${kOpts}</select></div>
+                        <div class="col-md-4"><label class="form-label small fw-semibold">Nilai KKM (0-100)</label><input type="number" id="kkm-v" class="form-control form-control-sm" min="0" max="100" value="75" required></div>
+                        <div class="col-md-4"><button type="submit" class="btn btn-navy btn-sm w-100">Simpan KKM</button></div>
+                    </form>
+                </div>
+                <div class="table-responsive p-3">
+                    <table class="table table-hover table-custom"><thead><tr><th>Kelas</th><th>Mata Pelajaran</th><th>Nilai KKM</th><th>Semester</th><th>Tahun Pelajaran</th></tr></thead>
+                    <tbody>${APP.kkm.map(k => `<tr><td class="fw-bold">${k.kelas}</td><td>${k.mata_pelajaran}</td><td>${k.nilai_kkm}</td><td>${k.semester}</td><td>${k.tahun_pelajaran}</td></tr>`).join("")}</tbody></table>
+                </div>
+            </div>
+        `;
+        document.getElementById("f-kkm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const res = await callAPI("saveKKM", {
+                kelas: document.getElementById("kkm-k").value, nilai_kkm: document.getElementById("kkm-v").value,
+                mata_pelajaran: APP.school.mata_pelajaran || "Informatika",
+                semester: APP.school.semester_aktif || "Ganjil", tahun_pelajaran: APP.school.tahun_pelajaran_aktif || "2026/2027"
+            });
+            if (res.success) { showToast(res.message); renderKKM(); }
+        });
+    }
+
+    // ==================== 12. LAPORAN TERPADU ====================
+    function renderLaporan() {
+        document.getElementById("app-content").innerHTML = `
+            <div class="card-custom p-4">
+                <h6 class="card-title-custom mb-3">Pusat Cetak & Ekspor Laporan Sekolah</h6>
+                <p class="small text-muted">Gunakan tombol cetak atau ekspor Excel langsung dari menu Riwayat Absensi maupun Rekap Nilai untuk menghasilkan dokumen berkop resmi SMP Negeri 2 Cikijing.</p>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-navy btn-sm" onclick="navigateTo('riwayat-absensi')">Laporan Absensi</button>
+                    <button class="btn btn-outline-primary btn-sm" onclick="navigateTo('rekap-nilai')">Laporan Rekap Nilai & KKM</button>
+                </div>
+            </div>
+        `;
+    }
+
+    // ==================== 13. PENGATURAN AKUN & IDENTITAS SEKOLAH ====================
+    function renderPengaturan() {
+        const s = APP.school;
+        document.getElementById("app-content").innerHTML = `
+            <div class="row g-3">
+                <div class="col-lg-6">
+                    <div class="card-custom p-3">
+                        <h6 class="card-title-custom mb-3">Identitas Sekolah & Tahun Pelajaran</h6>
+                        <form id="f-identitas">
+                            <div class="mb-2"><label class="form-label small fw-semibold">Nama Sekolah</label><input type="text" id="id-nama" class="form-control form-control-sm" value="${s.nama_sekolah || ''}"></div>
+                            <div class="mb-2"><label class="form-label small fw-semibold">Alamat Sekolah</label><input type="text" id="id-alamat" class="form-control form-control-sm" value="${s.alamat || ''}"></div>
+                            <div class="row g-2 mb-2">
+                                <div class="col-6"><label class="form-label small fw-semibold">Tahun Pelajaran</label><input type="text" id="id-tapel" class="form-control form-control-sm" value="${s.tahun_pelajaran_aktif || ''}"></div>
+                                <div class="col-6"><label class="form-label small fw-semibold">Semester</label><select id="id-sem" class="form-select form-select-sm"><option value="Ganjil" ${s.semester_aktif === 'Ganjil' ? 'selected' : ''}>Ganjil</option><option value="Genap" ${s.semester_aktif === 'Genap' ? 'selected' : ''}>Genap</option></select></div>
+                            </div>
+                            <div class="mb-3"><label class="form-label small fw-semibold">Upload Logo Sekolah (Simpan ke Google Drive)</label><input type="file" id="id-logo-file" accept="image/*" class="form-control form-control-sm" onchange="handleUploadLogo(event)"></div>
+                            <button type="submit" class="btn btn-navy btn-sm">Simpan Identitas Sekolah</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card-custom p-3">
+                        <h6 class="card-title-custom mb-3">Pengaturan Profil & Password Guru</h6>
+                        <form id="f-akun">
+                            <div class="mb-2"><label class="form-label small fw-semibold">Nama Lengkap Guru</label><input type="text" id="ak-nama" class="form-control form-control-sm" value="${APP.user.nama_lengkap || ''}"></div>
+                            <div class="mb-2"><label class="form-label small fw-semibold">Username</label><input type="text" id="ak-user" class="form-control form-control-sm" value="${APP.user.username || ''}"></div>
+                            <div class="mb-2"><label class="form-label small fw-semibold">Password Saat Ini (Wajib)</label><input type="password" id="ak-old-pass" class="form-control form-control-sm" required></div>
+                            <div class="mb-3"><label class="form-label small fw-semibold">Password Baru (Opsional, Min. 8 Karakter)</label><input type="password" id="ak-new-pass" class="form-control form-control-sm" minlength="8"></div>
+                            <button type="submit" class="btn btn-navy btn-sm">Perbarui Akun</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.getElementById("f-identitas").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const payload = {
+                nama_sekolah: document.getElementById("id-nama").value,
+                alamat: document.getElementById("id-alamat").value,
+                tahun_pelajaran_aktif: document.getElementById("id-tapel").value,
+                semester_aktif: document.getElementById("id-sem").value
+            };
+            const res = await callAPI("updateIdentitasSekolah", payload);
+            if (res.success) { Object.assign(APP.school, payload); applyBranding(APP.school); showToast(res.message); }
+        });
+        document.getElementById("f-akun").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const res = await callAPI("updateAkun", {
+                nama_lengkap: document.getElementById("ak-nama").value,
+                newUsername: document.getElementById("ak-user").value,
+                currentPassword: document.getElementById("ak-old-pass").value,
+                newPassword: document.getElementById("ak-new-pass").value
+            });
+            if (res.success) showToast(res.message); else showToast(res.message, "danger");
+        });
+    }
+
+    function handleUploadLogo(e) {
+        const f = e.target.files[0];
+        if (!f) return;
+        const r = new FileReader();
+        r.onload = async (ev) => {
+            const base64 = ev.target.result.split(",")[1];
+            const res = await callAPI("uploadLogoSekolah", { base64, mimeType: f.type });
+            if (res.success) { APP.school.logo_url = res.logo_url; applyBranding(APP.school); showToast(res.message); }
+        };
+        r.readAsDataURL(f);
+    }
+    </script>
+</body>
+</html>
