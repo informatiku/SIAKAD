@@ -212,7 +212,7 @@
     // ========================================================================
     // KONFIGURASI URL WEB APP GOOGLE APPS SCRIPT (GANTI SETELAH DEPLOYMENT)
     // ========================================================================
-    const API_URL = "https://script.google.com/macros/s/AKfycbz5Gnl-IZklKcePhtwxfbzBzxBCTiihvLySCNvBKFwjHoyAU9xjUwZ_Ju_RUmbEUbAa7g/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbydp4LfK-lbEwtvV70d_kqInQSqbUzCo9-Olty_cH1u-9LsrMqlFNGCFAd35ez6Yx90LA/exec";
 
     const APP = {
         token: localStorage.getItem("smpn2_token") || "",
@@ -343,8 +343,13 @@
         document.getElementById("sidebar-school-name").textContent = s.nama_sekolah || "SMPN 2 CIKIJING";
         document.getElementById("topbar-academic").textContent = `Tahun Pelajaran: ${s.tahun_pelajaran_aktif || '-'} | Semester: ${s.semester_aktif || '-'}`;
         if (s.logo_url) {
-            document.getElementById("login-logo").src = s.logo_url;
-            document.getElementById("sidebar-logo").src = s.logo_url;
+            let cleanLogoUrl = s.logo_url;
+            const matchId = cleanLogoUrl.match(/[?&]id=([^&]+)/);
+            if (cleanLogoUrl.includes("drive.google.com") && matchId) {
+                cleanLogoUrl = `https://drive.google.com/thumbnail?id=${matchId[1]}&sz=w1000`;
+            }
+            document.getElementById("login-logo").src = cleanLogoUrl;
+            document.getElementById("sidebar-logo").src = cleanLogoUrl;
         }
     }
 
@@ -1146,13 +1151,28 @@
         });
         document.getElementById("f-akun").addEventListener("submit", async (e) => {
             e.preventDefault();
+            const namaBaru = document.getElementById("ak-nama").value.trim();
+            const userBaru = document.getElementById("ak-user").value.trim();
             const res = await callAPI("updateAkun", {
-                nama_lengkap: document.getElementById("ak-nama").value,
-                newUsername: document.getElementById("ak-user").value,
+                nama_lengkap: namaBaru,
+                newUsername: userBaru,
                 currentPassword: document.getElementById("ak-old-pass").value,
                 newPassword: document.getElementById("ak-new-pass").value
             });
-            if (res.success) showToast(res.message); else showToast(res.message, "danger");
+            if (res.success) {
+                if (namaBaru) {
+                    APP.user.nama_lengkap = namaBaru;
+                    APP.school.nama_guru = namaBaru;
+                    document.getElementById("topbar-guru").textContent = namaBaru;
+                    document.getElementById("topbar-avatar").textContent = namaBaru.charAt(0).toUpperCase();
+                }
+                if (userBaru) APP.user.username = userBaru;
+                localStorage.setItem("smpn2_user", JSON.stringify(APP.user));
+                localStorage.setItem("smpn2_school", JSON.stringify(APP.school));
+                document.getElementById("ak-old-pass").value = "";
+                document.getElementById("ak-new-pass").value = "";
+                showToast(res.message);
+            } else showToast(res.message, "danger");
         });
     }
 
