@@ -218,11 +218,14 @@
         token: localStorage.getItem("smpn2_token") || "",
         user: JSON.parse(localStorage.getItem("smpn2_user") || "null"),
         school: JSON.parse(localStorage.getItem("smpn2_school") || "{}"),
-        kelas: [],
-        siswa: [],
-        jadwal: [],
-        kkm: [],
-        scanner: null
+        kelas: JSON.parse(localStorage.getItem("smpn2_cache_kelas") || "[]"),
+        siswa: JSON.parse(localStorage.getItem("smpn2_cache_siswa") || "[]"),
+        jadwal: JSON.parse(localStorage.getItem("smpn2_cache_jadwal") || "[]"),
+        kkm: JSON.parse(localStorage.getItem("smpn2_cache_kkm") || "[]"),
+        dashboard: JSON.parse(localStorage.getItem("smpn2_cache_dash") || "null"),
+        charts: [],
+        scanner: null,
+        syncPromise: null
     };
 
     async function callAPI(action, payload = {}, showLoading = true) {
@@ -269,6 +272,11 @@
         if (APP.scanner && APP.scanner.isScanning) {
             APP.scanner.stop().catch(() => {});
         }
+    }
+
+    function destroyCharts() {
+        APP.charts.forEach(ch => { try { ch.destroy(); } catch (e) {} });
+        APP.charts = [];
     }
 
     setInterval(() => {
@@ -364,25 +372,58 @@
             new bootstrap.Modal(document.getElementById("modalForcePass")).show();
             return;
         }
-        await refreshMaster();
         navigateTo("dashboard");
+        refreshMaster(true);
     }
 
-    async function refreshMaster() {
-        const [k, s, j, kkm] = await Promise.all([
+    async function refreshMaster(force = false, onUpdated = null) {
+        if (!force && APP.kelas.length > 0 && APP.siswa.length > 0) {
+            // Gunakan cache instan (0 ms) lalu sinkronkan diam-diam di latar belakang
+            syncMasterBackground(onUpdated);
+            return;
+        }
+        await syncMasterBackground(onUpdated);
+    }
+
+    function syncMasterBackground(onUpdated = null) {
+        if (APP.syncPromise) return APP.syncPromise;
+        APP.syncPromise = Promise.all([
             callAPI("getKelas", {}, false),
             callAPI("getSiswa", {}, false),
             callAPI("getJadwal", {}, false),
             callAPI("getKKM", {}, false)
-        ]);
-        if (k.success) APP.kelas = k.data;
-        if (s.success) APP.siswa = s.data;
-        if (j.success) APP.jadwal = j.data;
-        if (kkm.success) APP.kkm = kkm.data;
+        ]).then(([k, s, j, kkm]) => {
+            let changed = false;
+            if (k.success && JSON.stringify(APP.kelas) !== JSON.stringify(k.data)) {
+                APP.kelas = k.data;
+                localStorage.setItem("smpn2_cache_kelas", JSON.stringify(k.data));
+                changed = true;
+            }
+            if (s.success && JSON.stringify(APP.siswa) !== JSON.stringify(s.data)) {
+                APP.siswa = s.data;
+                localStorage.setItem("smpn2_cache_siswa", JSON.stringify(s.data));
+                changed = true;
+            }
+            if (j.success && JSON.stringify(APP.jadwal) !== JSON.stringify(j.data)) {
+                APP.jadwal = j.data;
+                localStorage.setItem("smpn2_cache_jadwal", JSON.stringify(j.data));
+                changed = true;
+            }
+            if (kkm.success && JSON.stringify(APP.kkm) !== JSON.stringify(kkm.data)) {
+                APP.kkm = kkm.data;
+                localStorage.setItem("smpn2_cache_kkm", JSON.stringify(kkm.data));
+                changed = true;
+            }
+            if (changed && typeof onUpdated === "function") onUpdated();
+        }).finally(() => {
+            APP.syncPromise = null;
+        });
+        return APP.syncPromise;
     }
 
     async function logoutApp(silent = false) {
         stopScanner();
+        destroyCharts();
         if (!silent && APP.token) await callAPI("logout", {}, false);
         localStorage.removeItem("smpn2_token");
         localStorage.removeItem("smpn2_user");
@@ -395,6 +436,7 @@
     // ==================== ROUTER HALAMAN ====================
     function navigateTo(page) {
         stopScanner();
+        destroyCharts();
         document.querySelectorAll(".nav-link-custom").forEach(el => el.classList.toggle("active", el.getAttribute("data-page") === page));
         const titles = {
             "dashboard": "Dashboard Utama",
@@ -405,8 +447,8 @@
             "materi": "Materi Pembelajaran",
             "absensi-qr": "Absensi QR Code",
             "riwayat-absensi": "Riwayat Absensi",
-            "input-nilai": "Input Nilai Siswa (UH, UTS, UAS & Nilai Akhir)",
-            "rekap-nilai": "Rekap Nilai & Ketuntasan KKM",
+            "input-nilai": "Daftar Nilai",
+            "rekap-nilai": "Rekap Nilai & KKM",
             "kkm": "Pengaturan KKM",
             "laporan": "Laporan Terpadu",
             "pengaturan": "Pengaturan Akun & Identitas Sekolah"
@@ -429,10 +471,8 @@
     }
 
     // ==================== 1. DASHBOARD ====================
-    async function renderDashboard() {
-        const res = await callAPI("getDashboard", {}, true);
-        if (!res.success) return;
-        const d = res.data;
+    function drawDashboardHTML(d) {
+        destroyCharts();
         document.getElementById("app-content").innerHTML = `
             <div class="row g-3 mb-4">
                 <div class="col-6 col-md-3"><div class="stat-card"><div><div class="stat-label">Total Siswa</div><div class="stat-value">${d.totalSiswa}</div></div><div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-people-fill"></i></div></div></div>
@@ -458,14 +498,30 @@
                 </div>
             </div>
         `;
-        new Chart(document.getElementById("cAbs"), { type: "bar", data: { labels: ["Hadir", "Izin", "Sakit", "Alpa"], datasets: [{ data: [d.hadirHariIni, d.izinHariIni, d.sakitHariIni, d.alpaHariIni], backgroundColor: ["#16a34a", "#0284c7", "#64748b", "#dc2626"] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
-        new Chart(document.getElementById("cNil"), { type: "bar", data: { labels: d.rataRataKelas.map(x => x.kelas), datasets: [{ data: d.rataRataKelas.map(x => x.rata_rata), backgroundColor: "#0f294a" }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { max: 100 } }, plugins: { legend: { display: false } } } });
-        new Chart(document.getElementById("cKkm"), { type: "doughnut", data: { labels: ["Mencapai", "Tidak Mencapai"], datasets: [{ data: [d.ketuntasan.mencapai, d.ketuntasan.tidakMencapai], backgroundColor: ["#16a34a", "#dc2626"] }] }, options: { responsive: true, maintainAspectRatio: false } });
+        APP.charts.push(
+            new Chart(document.getElementById("cAbs"), { type: "bar", data: { labels: ["Hadir", "Izin", "Sakit", "Alpa"], datasets: [{ data: [d.hadirHariIni, d.izinHariIni, d.sakitHariIni, d.alpaHariIni], backgroundColor: ["#16a34a", "#0284c7", "#64748b", "#dc2626"] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } }),
+            new Chart(document.getElementById("cNil"), { type: "bar", data: { labels: d.rataRataKelas.map(x => x.kelas), datasets: [{ data: d.rataRataKelas.map(x => x.rata_rata), backgroundColor: "#0f294a" }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { max: 100 } }, plugins: { legend: { display: false } } } }),
+            new Chart(document.getElementById("cKkm"), { type: "doughnut", data: { labels: ["Mencapai", "Tidak Mencapai"], datasets: [{ data: [d.ketuntasan.mencapai, d.ketuntasan.tidakMencapai], backgroundColor: ["#16a34a", "#dc2626"] }] }, options: { responsive: true, maintainAspectRatio: false } })
+        );
+    }
+
+    async function renderDashboard() {
+        const hasCache = Boolean(APP.dashboard);
+        if (hasCache) drawDashboardHTML(APP.dashboard);
+        const res = await callAPI("getDashboard", {}, !hasCache);
+        if (!res.success) return;
+        APP.dashboard = res.data;
+        localStorage.setItem("smpn2_cache_dash", JSON.stringify(res.data));
+        if (document.getElementById("page-title").textContent === "Dashboard Utama") {
+            drawDashboardHTML(res.data);
+        }
     }
 
     // ==================== 2. DATA SISWA (IMPORT EXCEL & EXPORT PDF) ====================
-    async function renderSiswa() {
-        await refreshMaster();
+    async function renderSiswa(forceSync = false) {
+        await refreshMaster(forceSync, () => {
+            if (document.getElementById("tb-siswa")) drawSiswaTable();
+        });
         const kOpts = APP.kelas.filter(k => k.status === "AKTIF").map(k => `<option value="${k.nama_kelas}">${k.nama_kelas}</option>`).join("");
         document.getElementById("app-content").innerHTML = `
             <div class="card-custom">
@@ -520,7 +576,7 @@
             if (res.success) {
                 bootstrap.Modal.getInstance(document.getElementById("mSiswa")).hide();
                 showToast(res.message);
-                renderSiswa();
+                renderSiswa(true);
             } else showToast(res.message, "danger");
         });
         drawSiswaTable();
@@ -558,7 +614,7 @@
 
     async function delSiswa(id) {
         const res = await callAPI("deleteSiswa", { id_siswa: id });
-        if (res.success) { showToast(res.message); renderSiswa(); }
+        if (res.success) { showToast(res.message); renderSiswa(true); }
     }
 
     function dlTemplateSiswa() {
@@ -576,7 +632,7 @@
             const wb = XLSX.read(new Uint8Array(ev.target.result), { type: "array" });
             const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
             const res = await callAPI("importSiswaBulk", { siswa: rows });
-            if (res.success) { showToast(res.message); renderSiswa(); }
+            if (res.success) { showToast(res.message); renderSiswa(true); }
         };
         r.readAsArrayBuffer(f);
     }
@@ -596,7 +652,9 @@
 
     // ==================== 3. QR CODE SISWA (KARTU PELAJAR) ====================
     async function renderQRSiswa() {
-        await refreshMaster();
+        await refreshMaster(false, () => {
+            if (document.getElementById("tb-qr")) drawQRTable();
+        });
         const kOpts = APP.kelas.filter(k => k.status === "AKTIF").map(k => `<option value="${k.nama_kelas}">${k.nama_kelas}</option>`).join("");
         document.getElementById("app-content").innerHTML = `
             <div class="card-custom">
@@ -629,7 +687,7 @@
         document.getElementById("tb-qr").innerHTML = list.map((s, i) => `
             <tr><td>${i + 1}</td><td>${s.nis}</td><td class="fw-semibold">${s.nama_lengkap}</td><td>${s.kelas}</td><td><code>${s.qr_token}</code></td>
             <td class="text-end"><button class="btn btn-sm btn-outline-primary" onclick="openQRCard('${s.id_siswa}')"><i class="bi bi-person-badge me-1"></i>Kartu QR</button></td></tr>
-        `).join("");
+        `).join("") || '<tr><td colspan="6" class="text-center text-muted">Memuat data siswa...</td></tr>';
     }
 
     function buildCardHTML(s, qrId) {
@@ -661,8 +719,10 @@
     }
 
     // ==================== 4. MANAJEMEN KELAS ====================
-    async function renderKelas() {
-        await refreshMaster();
+    async function renderKelas(forceSync = false) {
+        await refreshMaster(forceSync, () => {
+            if (document.getElementById("page-title").textContent === "Manajemen Kelas") renderKelas(false);
+        });
         document.getElementById("app-content").innerHTML = `
             <div class="card-custom">
                 <div class="card-header-custom"><h6 class="card-title-custom">Manajemen Kelas</h6><button class="btn btn-navy btn-sm" onclick="openModalKelas()"><i class="bi bi-plus-lg me-1"></i>Tambah Kelas</button></div>
@@ -702,7 +762,7 @@
                 tingkat: document.getElementById("k-tingkat").value, tahun_pelajaran: document.getElementById("k-tapel").value,
                 wali_kelas: document.getElementById("k-wali").value, status: document.getElementById("k-status").value
             });
-            if (res.success) { bootstrap.Modal.getInstance(document.getElementById("mKelas")).hide(); showToast(res.message); renderKelas(); }
+            if (res.success) { bootstrap.Modal.getInstance(document.getElementById("mKelas")).hide(); showToast(res.message); renderKelas(true); }
         });
     }
 
@@ -731,12 +791,12 @@
 
     async function delKelas(id) {
         const res = await callAPI("deleteKelas", { id_kelas: id });
-        if (res.success) { showToast(res.message); renderKelas(); } else showToast(res.message, "warning");
+        if (res.success) { showToast(res.message); renderKelas(true); } else showToast(res.message, "warning");
     }
 
     // ==================== 5. JADWAL PELAJARAN ====================
-    async function renderJadwal() {
-        await refreshMaster();
+    async function renderJadwal(forceSync = false) {
+        await refreshMaster(forceSync);
         const kOpts = APP.kelas.filter(k => k.status === "AKTIF").map(k => `<option value="${k.nama_kelas}">${k.nama_kelas}</option>`).join("");
         document.getElementById("app-content").innerHTML = `
             <div class="card-custom">
@@ -769,11 +829,11 @@
                 kelas: document.getElementById("j-kelas").value, mata_pelajaran: document.getElementById("j-mapel").value,
                 nama_guru: document.getElementById("j-guru").value
             });
-            if (res.success) { bootstrap.Modal.getInstance(document.getElementById("mJadwal")).hide(); showToast(res.message); renderJadwal(); }
+            if (res.success) { bootstrap.Modal.getInstance(document.getElementById("mJadwal")).hide(); showToast(res.message); renderJadwal(true); }
         });
     }
     function openModalJadwal() { new bootstrap.Modal(document.getElementById("mJadwal")).show(); }
-    async function delJadwal(id) { const res = await callAPI("deleteJadwal", { id_jadwal: id }); if (res.success) { showToast(res.message); renderJadwal(); } }
+    async function delJadwal(id) { const res = await callAPI("deleteJadwal", { id_jadwal: id }); if (res.success) { showToast(res.message); renderJadwal(true); } }
 
     // ==================== 6. MATERI PEMBELAJARAN ====================
     async function renderMateri() {
@@ -818,7 +878,7 @@
 
     // ==================== 7. ABSENSI QR CODE (OTOMATIS ALPA + KAMERA) ====================
     async function renderAbsensiQR() {
-        await refreshMaster();
+        await refreshMaster(false);
         const kOpts = APP.kelas.filter(k => k.status === "AKTIF").map(k => `<option value="${k.nama_kelas}">${k.nama_kelas}</option>`).join("");
         const jOpts = APP.jadwal.map(j => `<option value="${j.id_jadwal}">${j.hari} (${j.jam}) - ${j.kelas}</option>`).join("");
         document.getElementById("app-content").innerHTML = `
@@ -925,12 +985,12 @@
 
     // ==================== 9. INPUT NILAI SISWA TERPADU ====================
     async function renderInputNilai() {
-        await refreshMaster();
+        await refreshMaster(false);
         const kOpts = APP.kelas.filter(k => k.status === "AKTIF").map(k => `<option value="${k.nama_kelas}">${k.nama_kelas}</option>`).join("");
         document.getElementById("app-content").innerHTML = `
             <div class="card-custom">
                 <div class="card-header-custom">
-                    <h6 class="card-title-custom">Input Nilai UH 1, UH 2, UH 3, UTS, UAS & Nilai Akhir</h6>
+                    <h6 class="card-title-custom">Daftar Nilai</h6>
                     <div class="d-flex gap-2">
                         <select id="nil-kelas" class="form-select form-select-sm" onchange="loadNilaiTabel()">${kOpts}</select>
                         <button class="btn btn-navy btn-sm" onclick="simpanSemuaNilai()"><i class="bi bi-save me-1"></i>Simpan Semua Nilai</button>
@@ -1017,7 +1077,7 @@
 
     // ==================== 10. REKAP NILAI & KKM ====================
     async function renderRekapNilai() {
-        await refreshMaster();
+        await refreshMaster(false);
         const kOpts = APP.kelas.filter(k => k.status === "AKTIF").map(k => `<option value="${k.nama_kelas}">${k.nama_kelas}</option>`).join("");
         document.getElementById("app-content").innerHTML = `
             <div class="card-custom p-3 mb-3">
@@ -1060,8 +1120,8 @@
     }
 
     // ==================== 11. PENGATURAN KKM ====================
-    async function renderKKM() {
-        await refreshMaster();
+    async function renderKKM(forceSync = false) {
+        await refreshMaster(forceSync);
         const kOpts = APP.kelas.filter(k => k.status === "AKTIF").map(k => `<option value="${k.nama_kelas}">${k.nama_kelas}</option>`).join("");
         document.getElementById("app-content").innerHTML = `
             <div class="card-custom">
@@ -1086,7 +1146,7 @@
                 mata_pelajaran: APP.school.mata_pelajaran || "Informatika",
                 semester: APP.school.semester_aktif || "Ganjil", tahun_pelajaran: APP.school.tahun_pelajaran_aktif || "2026/2027"
             });
-            if (res.success) { showToast(res.message); renderKKM(); }
+            if (res.success) { showToast(res.message); renderKKM(true); }
         });
     }
 
